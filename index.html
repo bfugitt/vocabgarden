@@ -1,0 +1,673 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { BookOpen, Sprout, Hammer, ArrowLeft, Check, RefreshCcw, X, Star, Sun, Cloud, Leaf, Layers, ArrowRight } from 'lucide-react';
+
+// --- DATA CONFIGURATION ---
+// Paste your original data array here. 
+// Expected format: Objects with keys: u (unit), w (word), d (def), s (syn), a (ant)
+const RAW_DATA = [
+  { u: "Unit 1: Ecosystems", w: "ecosystem", d: "A community of living things interacting with their environment.", s: "environment", a: "void" },
+  { u: "Unit 1: Ecosystems", w: "organism", d: "An individual animal, plant, or single-celled life form.", s: "creature", a: "inanimate" },
+  { u: "Unit 1: Ecosystems", w: "migration", d: "Movement from one region or habitat to another.", s: "travel", a: "stay" },
+  { u: "Unit 2: Storytelling", w: "narrative", d: "A spoken or written account of connected events; a story.", s: "tale", a: "fact" },
+  { u: "Unit 2: Storytelling", w: "protagonist", d: "The leading character or one of the major characters in a drama, movie, novel, or other fictional text.", s: "hero", a: "villain" },
+  { u: "Unit 2: Storytelling", w: "dialogue", d: "Conversation between two or more people as a feature of a book, play, or movie.", s: "chat", a: "monologue" },
+  { u: "Unit 3: Forces", w: "gravity", d: "The force that attracts a body toward the center of the earth.", s: "attraction", a: "repulsion" },
+  { u: "Unit 3: Forces", w: "friction", d: "The resistance that one surface or object encounters when moving over another.", s: "resistance", a: "smoothness" }
+];
+
+// --- COMPONENTS ---
+
+// 0. Unit Selection (The Garden Gate)
+const UnitSelection = ({ units, onStart }) => {
+  const [selected, setSelected] = useState([]);
+
+  const toggleUnit = (unit) => {
+    setSelected(prev => 
+      prev.includes(unit) ? prev.filter(u => u !== unit) : [...prev, unit]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selected.length === units.length) setSelected([]);
+    else setSelected([...units]);
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] w-full max-w-2xl mx-auto p-6 animate-fadeIn">
+      <div className="text-center mb-8">
+        <h1 className="text-4xl md:text-5xl font-serif text-stone-800 mb-2">Vocabulary Garden</h1>
+        <p className="text-stone-500 italic">Open the gate to begin.</p>
+      </div>
+
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-200 w-full mb-8">
+        <div className="flex justify-between items-center mb-4 pb-4 border-b border-stone-100">
+          <h2 className="text-lg font-bold text-stone-700">Select Collections</h2>
+          <button 
+            onClick={handleSelectAll}
+            className="text-sm text-green-600 font-medium hover:text-green-800"
+          >
+            {selected.length === units.length ? "Deselect All" : "Select All"}
+          </button>
+        </div>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+          {units.map(unit => (
+            <button
+              key={unit}
+              onClick={() => toggleUnit(unit)}
+              className={`flex items-center p-3 rounded-lg text-left transition-all border-2
+                ${selected.includes(unit) 
+                  ? 'bg-green-50 border-green-500 text-green-900' 
+                  : 'bg-stone-50 border-transparent hover:bg-stone-100 text-stone-600'
+                }`}
+            >
+              <div className={`w-5 h-5 rounded border mr-3 flex items-center justify-center transition-colors
+                ${selected.includes(unit) ? 'bg-green-500 border-green-500' : 'border-stone-300 bg-white'}
+              `}>
+                {selected.includes(unit) && <Check size={14} className="text-white" />}
+              </div>
+              <span className="text-sm font-medium truncate">{unit}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <button 
+        disabled={selected.length === 0}
+        onClick={() => onStart(selected)}
+        className={`px-8 py-3 rounded-full font-bold text-lg shadow-md transition-all flex items-center gap-2
+          ${selected.length === 0 
+            ? 'bg-stone-200 text-stone-400 cursor-not-allowed' 
+            : 'bg-green-700 text-white hover:bg-green-800 hover:scale-105'
+          }`}
+      >
+        Enter Garden <ArrowRight size={20} />
+      </button>
+    </div>
+  );
+};
+
+// 1. The Sketchbook (Flashcards)
+const Sketchbook = ({ pool, onBack, onMastery }) => {
+  const [index, setIndex] = useState(0);
+  const [flipped, setFlipped] = useState(false);
+  
+  const currentCard = pool[index];
+
+  const nextCard = () => {
+    setFlipped(false);
+    setTimeout(() => {
+      setIndex((prev) => (prev + 1) % pool.length);
+    }, 200);
+  };
+
+  const markMastered = () => {
+    onMastery(); 
+    nextCard();
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center h-full w-full p-4 animate-fadeIn">
+      <div className="flex items-center justify-between w-full max-w-md mb-6">
+        <button onClick={onBack} className="flex items-center text-stone-600 hover:text-stone-800 transition-colors">
+          <ArrowLeft size={20} className="mr-2" /> Garden
+        </button>
+        <span className="text-stone-500 font-serif italic">Card {index + 1} of {pool.length}</span>
+      </div>
+
+      <div 
+        onClick={() => setFlipped(!flipped)}
+        className="cursor-pointer group perspective-1000 w-full max-w-md h-96 relative"
+      >
+        <div className={`relative w-full h-full transition-transform duration-700 transform-style-3d ${flipped ? 'rotate-y-180' : ''}`}>
+          
+          {/* Front */}
+          <div className="absolute w-full h-full backface-hidden bg-white rounded-xl shadow-[4px_4px_0px_0px_rgba(214,211,209,1)] border-2 border-stone-200 flex flex-col items-center justify-center p-8 bg-paper-pattern">
+            <span className="text-stone-400 text-xs absolute top-4 right-4 uppercase tracking-wider">{currentCard.u}</span>
+            <h2 className="text-4xl text-stone-800 font-serif font-medium tracking-wide text-center">{currentCard.w}</h2>
+            <div className="mt-8 text-stone-400 text-sm flex items-center gap-2">
+              <RefreshCcw size={14} /> Tap to reveal meaning
+            </div>
+          </div>
+
+          {/* Back */}
+          <div className="absolute w-full h-full backface-hidden bg-stone-50 rounded-xl shadow-[4px_4px_0px_0px_rgba(168,162,158,1)] border-2 border-stone-300 flex flex-col items-center justify-center p-8 rotate-y-180 bg-paper-pattern">
+            <span className="text-stone-400 text-sm absolute top-4 right-4">Definition</span>
+            <p className="text-xl text-stone-700 text-center font-medium leading-relaxed mb-6">
+              "{currentCard.d}"
+            </p>
+            <div className="w-full grid grid-cols-2 gap-4 mt-4 border-t-2 border-dashed border-stone-200 pt-4">
+              <div className="text-center">
+                <span className="block text-xs uppercase tracking-widest text-stone-400 mb-1">Synonym</span>
+                <span className="text-stone-600 font-serif italic">{currentCard.s || '-'}</span>
+              </div>
+              <div className="text-center">
+                <span className="block text-xs uppercase tracking-widest text-stone-400 mb-1">Antonym</span>
+                <span className="text-stone-600 font-serif italic">{currentCard.a || '-'}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex gap-4 mt-8 w-full max-w-md">
+        <button 
+          onClick={(e) => { e.stopPropagation(); nextCard(); }}
+          className="flex-1 py-3 px-6 rounded-lg border-2 border-stone-300 text-stone-500 font-bold hover:bg-stone-100 transition-colors"
+        >
+          Study Again
+        </button>
+        <button 
+          onClick={(e) => { e.stopPropagation(); markMastered(); }}
+          className="flex-1 py-3 px-6 rounded-lg bg-green-700/90 text-white font-bold shadow-md hover:bg-green-800 hover:shadow-lg transition-all flex items-center justify-center gap-2"
+        >
+          <Check size={18} /> Got it!
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// 2. Word Workshop (Spelling)
+const WordWorkshop = ({ pool, onBack, onMastery }) => {
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const [shuffledLetters, setShuffledLetters] = useState([]);
+  const [placedLetters, setPlacedLetters] = useState([]);
+  const [isCorrect, setIsCorrect] = useState(null);
+
+  const targetWord = pool[currentIdx].w;
+
+  useEffect(() => {
+    resetRound();
+  }, [currentIdx]);
+
+  const resetRound = () => {
+    const letters = pool[currentIdx].w.split('').map((l, i) => ({ val: l, id: i }));
+    // Shuffle
+    for (let i = letters.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [letters[i], letters[j]] = [letters[j], letters[i]];
+    }
+    setShuffledLetters(letters);
+    setPlacedLetters(Array(letters.length).fill(null));
+    setIsCorrect(null);
+  };
+
+  const handleTileClick = (letterObj) => {
+    if (isCorrect) return; 
+    const firstEmptyIndex = placedLetters.indexOf(null);
+    if (firstEmptyIndex !== -1) {
+      const newPlaced = [...placedLetters];
+      newPlaced[firstEmptyIndex] = letterObj;
+      setPlacedLetters(newPlaced);
+      setShuffledLetters(prev => prev.filter(l => l.id !== letterObj.id));
+      if (firstEmptyIndex === placedLetters.length - 1) checkWin(newPlaced);
+    }
+  };
+
+  const handleSlotClick = (index) => {
+    if (isCorrect) return;
+    const letterToReturn = placedLetters[index];
+    if (letterToReturn) {
+      const newPlaced = [...placedLetters];
+      newPlaced[index] = null;
+      setPlacedLetters(newPlaced);
+      setShuffledLetters(prev => [...prev, letterToReturn]);
+    }
+  };
+
+  const checkWin = (currentPlaced) => {
+    const attemptedWord = currentPlaced.map(l => l.val).join('');
+    if (attemptedWord === targetWord) {
+      setIsCorrect(true);
+      onMastery();
+      setTimeout(() => {
+        if (currentIdx < pool.length - 1) setCurrentIdx(prev => prev + 1);
+        else setCurrentIdx(0); 
+      }, 1500);
+    } else {
+      setIsCorrect(false);
+      setTimeout(() => setIsCorrect(null), 1000);
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-start h-full w-full p-4 animate-fadeIn">
+      <div className="flex items-center justify-between w-full max-w-lg mb-8">
+        <button onClick={onBack} className="flex items-center text-stone-600 hover:text-stone-800">
+          <ArrowLeft size={20} className="mr-2" /> Garden
+        </button>
+        <span className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-xs font-bold tracking-wider">WORKSHOP</span>
+      </div>
+
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-200 w-full max-w-lg text-center mb-8 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-1 bg-orange-300"></div>
+        <h3 className="text-stone-400 text-sm uppercase tracking-widest mb-2">Build the word for:</h3>
+        <p className="text-xl text-stone-800 font-medium leading-relaxed">"{pool[currentIdx].d}"</p>
+      </div>
+
+      <div className={`flex flex-wrap justify-center gap-2 mb-10 transition-transform ${isCorrect === false ? 'animate-shake' : ''}`}>
+        {placedLetters.map((letter, idx) => (
+          <button
+            key={idx}
+            onClick={() => handleSlotClick(idx)}
+            className={`w-10 h-12 md:w-12 md:h-14 rounded-lg flex items-center justify-center text-xl md:text-2xl font-bold shadow-inner transition-all
+              ${letter 
+                ? isCorrect === true 
+                  ? 'bg-green-100 text-green-700 border-2 border-green-300' 
+                  : 'bg-stone-100 text-stone-800 border-2 border-stone-300 hover:bg-red-50' 
+                : 'bg-stone-50 border-2 border-dashed border-stone-200'
+              }`}
+          >
+            {letter ? letter.val : ''}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap justify-center gap-2 md:gap-3 max-w-lg">
+        {shuffledLetters.map((letter) => (
+          <button
+            key={letter.id}
+            onClick={() => handleTileClick(letter)}
+            className="w-10 h-12 md:w-12 md:h-14 bg-amber-200 rounded-lg shadow-[0px_4px_0px_0px_rgba(217,119,6,1)] border-t border-amber-100 flex items-center justify-center text-xl md:text-2xl font-bold text-amber-900 active:translate-y-1 active:shadow-none transition-transform"
+          >
+            {letter.val}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// 3. Pebble Paths (Quiz / Multiple Choice)
+const PebblePaths = ({ pool, onBack, onMastery }) => {
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const [options, setOptions] = useState([]);
+  const [selectedOption, setSelectedOption] = useState(null);
+  const [isCorrect, setIsCorrect] = useState(null);
+
+  useEffect(() => {
+    generateQuestion();
+  }, [currentIdx]);
+
+  const generateQuestion = () => {
+    const correct = pool[currentIdx];
+    // Get 3 distractors
+    const distractors = pool
+        .filter(i => i.w !== correct.w)
+        .sort(() => 0.5 - Math.random())
+        .slice(0, 3);
+    
+    const allOptions = [...distractors, correct].sort(() => 0.5 - Math.random());
+    setOptions(allOptions);
+    setSelectedOption(null);
+    setIsCorrect(null);
+  };
+
+  const handleSelect = (item) => {
+    if (selectedOption) return; // Lock
+    setSelectedOption(item);
+    
+    const correct = item.w === pool[currentIdx].w;
+    setIsCorrect(correct);
+
+    if (correct) {
+      onMastery();
+      setTimeout(() => {
+        if (currentIdx < pool.length - 1) setCurrentIdx(prev => prev + 1);
+        else setCurrentIdx(0);
+      }, 1500);
+    } else {
+       setTimeout(() => {
+           setSelectedOption(null);
+           setIsCorrect(null);
+       }, 1500);
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-start h-full w-full p-4 animate-fadeIn">
+        <div className="flex items-center justify-between w-full max-w-2xl mb-8">
+            <button onClick={onBack} className="flex items-center text-stone-600 hover:text-stone-800">
+            <ArrowLeft size={20} className="mr-2" /> Garden
+            </button>
+            <span className="bg-slate-100 text-slate-800 px-3 py-1 rounded-full text-xs font-bold tracking-wider">PEBBLE SORTING</span>
+        </div>
+
+        <div className="text-center mb-8">
+            <span className="text-stone-400 text-sm uppercase tracking-widest">Find the meaning of</span>
+            <h2 className="text-4xl text-stone-800 font-serif font-bold mt-2">{pool[currentIdx].w}</h2>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 w-full max-w-2xl">
+            {options.map((opt, i) => {
+                const isSelected = selectedOption === opt;
+                const isTarget = opt.w === pool[currentIdx].w;
+                
+                let styleClass = "bg-white border-stone-200 hover:border-slate-400 hover:bg-slate-50";
+                if (isSelected) {
+                    if (isTarget) styleClass = "bg-green-100 border-green-500 text-green-800 shadow-none";
+                    else styleClass = "bg-red-50 border-red-300 text-red-800 shadow-none animate-shake";
+                } else if (selectedOption && isTarget) {
+                    // Show correct answer if wrong one picked
+                    styleClass = "bg-green-50 border-green-300 text-green-700 opacity-70";
+                }
+
+                return (
+                    <button
+                        key={i}
+                        onClick={() => handleSelect(opt)}
+                        className={`p-5 rounded-2xl border-2 shadow-sm text-left transition-all duration-200 flex items-start gap-4 ${styleClass}`}
+                    >
+                        <div className={`mt-1 min-w-[24px] h-6 rounded-full border-2 flex items-center justify-center
+                            ${isSelected && isTarget ? 'border-green-600 bg-green-600 text-white' : 'border-stone-300'}
+                        `}>
+                            {isSelected && isTarget && <Check size={14} />}
+                            {isSelected && !isTarget && <X size={14} />}
+                        </div>
+                        <span className="text-lg font-medium leading-snug">{opt.d}</span>
+                    </button>
+                )
+            })}
+        </div>
+    </div>
+  );
+};
+
+// 4. Community Garden (Match)
+const MeaningGarden = ({ pool, onBack, onMastery }) => {
+  const [roundData, setRoundData] = useState([]);
+  const [selectedWord, setSelectedWord] = useState(null);
+  const [matchedIds, setMatchedIds] = useState([]);
+
+  useEffect(() => {
+    const size = Math.min(pool.length, 3);
+    const shuffled = [...pool].sort(() => 0.5 - Math.random()).slice(0, size);
+    setRoundData(shuffled);
+    setMatchedIds([]);
+    setSelectedWord(null);
+  }, [pool]);
+
+  const handleWordClick = (word) => {
+    if (matchedIds.includes(word)) return;
+    setSelectedWord(word === selectedWord ? null : word);
+  };
+
+  const handleDefClick = (word) => {
+    if (matchedIds.includes(word)) return;
+    if (selectedWord === word) {
+      setMatchedIds(prev => [...prev, word]);
+      setSelectedWord(null);
+      onMastery(); 
+      if (matchedIds.length + 1 === roundData.length) {
+        setTimeout(() => {
+           const size = Math.min(pool.length, 3);
+           const shuffled = [...pool].sort(() => 0.5 - Math.random()).slice(0, size);
+           setRoundData(shuffled);
+           setMatchedIds([]);
+        }, 1500);
+      }
+    } else {
+      setSelectedWord(null);
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-full w-full p-4 animate-fadeIn">
+      <div className="flex items-center justify-between w-full mb-6">
+        <button onClick={onBack} className="flex items-center text-stone-600 hover:text-stone-800">
+          <ArrowLeft size={20} className="mr-2" /> Garden
+        </button>
+        <div className="flex items-center gap-2 text-green-700">
+          <Sprout size={20} /> <span className="font-bold">Planting Season</span>
+        </div>
+      </div>
+
+      <div className="flex-1 flex flex-col md:flex-row gap-8 items-center justify-center max-w-5xl mx-auto w-full">
+        <div className="flex-1 w-full space-y-4">
+          <h3 className="text-center text-stone-400 text-sm uppercase tracking-widest mb-2">Seeds</h3>
+          {roundData.map(item => {
+            const isMatched = matchedIds.includes(item.w);
+            const isSelected = selectedWord === item.w;
+            return (
+              <button
+                key={`word-${item.w}`}
+                onClick={() => handleWordClick(item.w)}
+                disabled={isMatched}
+                className={`w-full p-4 rounded-xl border-2 transition-all duration-300 relative overflow-hidden text-left
+                  ${isMatched 
+                    ? 'bg-green-50 border-green-200 opacity-50' 
+                    : isSelected
+                      ? 'bg-amber-100 border-amber-400 shadow-md scale-105 z-10'
+                      : 'bg-white border-stone-200 hover:border-amber-300 hover:shadow-sm'
+                  }`}
+              >
+                 <div className="flex items-center justify-between">
+                    <span className={`text-lg font-bold ${isMatched ? 'text-green-800' : 'text-stone-800'}`}>{item.w}</span>
+                    {isMatched && <Check size={20} className="text-green-600" />}
+                 </div>
+              </button>
+            )
+          })}
+        </div>
+
+        <div className="flex-1 w-full space-y-4">
+          <h3 className="text-center text-stone-400 text-sm uppercase tracking-widest mb-2">Soil</h3>
+          {roundData.sort((a,b) => a.w.localeCompare(b.w)).map(item => { // randomize visual order logic here
+             const isMatched = matchedIds.includes(item.w);
+             return (
+               <button
+                 key={`def-${item.w}`}
+                 onClick={() => handleDefClick(item.w)}
+                 disabled={isMatched}
+                 className={`w-full p-4 rounded-xl border-2 transition-all duration-300 text-left h-auto min-h-[80px]
+                   ${isMatched 
+                     ? 'bg-green-100 border-green-300' 
+                     : selectedWord 
+                       ? 'bg-stone-50 border-stone-300 border-dashed hover:bg-green-50 hover:border-green-400'
+                       : 'bg-stone-50 border-stone-200'
+                   }`}
+               >
+                 {isMatched ? (
+                    <div className="flex items-center justify-center gap-2 text-green-800 font-bold">
+                        <Leaf className="fill-current" /> Planted!
+                    </div>
+                 ) : (
+                    <span className="text-stone-600 text-sm leading-snug">{item.d}</span>
+                 )}
+               </button>
+             )
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 5. Main Menu (The Garden Center)
+const MainMenu = ({ onViewChange, progress, onBack }) => {
+  const gardenLevel = Math.min(Math.floor(progress / 5), 5); 
+  
+  return (
+    <div className="flex flex-col items-center w-full max-w-4xl mx-auto p-6 animate-fadeIn">
+      
+      <div className="w-full flex justify-start mb-4">
+         <button onClick={onBack} className="text-stone-400 hover:text-stone-600 text-sm flex items-center gap-1">
+            <ArrowLeft size={16}/> Select different units
+         </button>
+      </div>
+
+      <header className="text-center mb-8 w-full">
+        <h1 className="text-4xl md:text-5xl font-serif text-stone-800 mb-2">The Garden</h1>
+        <p className="text-stone-500 italic">Choose a path to explore.</p>
+      </header>
+
+      {/* The Garden Dashboard */}
+      <div className="w-full bg-gradient-to-b from-blue-50 to-white border border-stone-200 rounded-3xl p-8 mb-10 shadow-sm relative overflow-hidden">
+        <div className="absolute top-4 right-4 text-yellow-400 animate-pulse-slow">
+            <Sun size={48} className="fill-current" />
+        </div>
+        <div className="absolute top-8 left-10 text-blue-100">
+            <Cloud size={64} className="fill-current" />
+        </div>
+
+        <div className="flex flex-col items-center justify-end h-32 relative z-10">
+            <div className="flex items-end gap-2">
+                {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className={`transition-all duration-1000 ${i < gardenLevel ? 'opacity-100 translate-y-0' : 'opacity-20 translate-y-10 scale-0'}`}>
+                        <Sprout size={32 + (i*8)} className={`text-green-${500 + (i*100)}`} />
+                    </div>
+                ))}
+            </div>
+            <div className="w-full h-4 bg-stone-300 rounded-full mt-2 opacity-50"></div>
+            <p className="mt-4 text-stone-600 font-medium text-sm bg-white/80 px-4 py-1 rounded-full shadow-sm">
+              Growth: {progress} Seeds Sprouted
+            </p>
+        </div>
+      </div>
+
+      {/* Invitations */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
+        
+        <button 
+            onClick={() => onViewChange('sketchbook')}
+            className="group relative bg-white rounded-2xl p-5 shadow-sm border-2 border-stone-100 hover:border-blue-200 hover:shadow-md transition-all text-left flex flex-col h-40 justify-between overflow-hidden"
+        >
+            <div className="absolute -right-4 -top-4 bg-blue-50 w-20 h-20 rounded-full transition-transform group-hover:scale-150"></div>
+            <div className="z-10 bg-blue-100 w-10 h-10 rounded-lg flex items-center justify-center text-blue-600 mb-2">
+                <BookOpen size={20} />
+            </div>
+            <div className="z-10">
+                <h3 className="text-lg font-bold text-stone-800 mb-1">Sketchbook</h3>
+                <p className="text-xs text-stone-500">Study cards.</p>
+            </div>
+        </button>
+
+        <button 
+            onClick={() => onViewChange('quiz')}
+            className="group relative bg-white rounded-2xl p-5 shadow-sm border-2 border-stone-100 hover:border-slate-200 hover:shadow-md transition-all text-left flex flex-col h-40 justify-between overflow-hidden"
+        >
+            <div className="absolute -right-4 -top-4 bg-slate-100 w-20 h-20 rounded-full transition-transform group-hover:scale-150"></div>
+            <div className="z-10 bg-slate-200 w-10 h-10 rounded-lg flex items-center justify-center text-slate-700 mb-2">
+                <Layers size={20} />
+            </div>
+            <div className="z-10">
+                <h3 className="text-lg font-bold text-stone-800 mb-1">Pebble Paths</h3>
+                <p className="text-xs text-stone-500">Find the meaning.</p>
+            </div>
+        </button>
+
+        <button 
+            onClick={() => onViewChange('workshop')}
+            className="group relative bg-white rounded-2xl p-5 shadow-sm border-2 border-stone-100 hover:border-amber-200 hover:shadow-md transition-all text-left flex flex-col h-40 justify-between overflow-hidden"
+        >
+            <div className="absolute -right-4 -top-4 bg-amber-50 w-20 h-20 rounded-full transition-transform group-hover:scale-150"></div>
+            <div className="z-10 bg-amber-100 w-10 h-10 rounded-lg flex items-center justify-center text-amber-700 mb-2">
+                <Hammer size={20} />
+            </div>
+            <div className="z-10">
+                <h3 className="text-lg font-bold text-stone-800 mb-1">Workshop</h3>
+                <p className="text-xs text-stone-500">Build words.</p>
+            </div>
+        </button>
+
+        <button 
+            onClick={() => onViewChange('garden')}
+            className="group relative bg-white rounded-2xl p-5 shadow-sm border-2 border-stone-100 hover:border-green-200 hover:shadow-md transition-all text-left flex flex-col h-40 justify-between overflow-hidden"
+        >
+            <div className="absolute -right-4 -top-4 bg-green-50 w-20 h-20 rounded-full transition-transform group-hover:scale-150"></div>
+            <div className="z-10 bg-green-100 w-10 h-10 rounded-lg flex items-center justify-center text-green-700 mb-2">
+                <Leaf size={20} />
+            </div>
+            <div className="z-10">
+                <h3 className="text-lg font-bold text-stone-800 mb-1">Garden</h3>
+                <p className="text-xs text-stone-500">Match seeds.</p>
+            </div>
+        </button>
+
+      </div>
+    </div>
+  );
+};
+
+// --- MAIN APP CONTAINER ---
+export default function App() {
+  const [currentView, setCurrentView] = useState('selection');
+  const [progress, setProgress] = useState(0);
+  const [activeUnits, setActiveUnits] = useState([]);
+  
+  // Extract unique units from RAW_DATA
+  const availableUnits = useMemo(() => {
+    const units = new Set(RAW_DATA.map(i => i.u));
+    return Array.from(units).sort();
+  }, []);
+
+  // Filter pool based on selection
+  const activePool = useMemo(() => {
+    if (activeUnits.length === 0) return [];
+    return RAW_DATA.filter(item => activeUnits.includes(item.u));
+  }, [activeUnits]);
+
+  const handleStart = (selected) => {
+    setActiveUnits(selected);
+    setCurrentView('menu');
+  };
+
+  const handleMastery = () => {
+    setProgress(prev => prev + 1);
+  };
+
+  return (
+    <div className="min-h-screen bg-stone-50 font-sans text-stone-800 selection:bg-amber-100 flex flex-col">
+      <style>{`
+        .bg-paper-pattern {
+          background-image: radial-gradient(#e7e5e4 1px, transparent 1px);
+          background-size: 20px 20px;
+        }
+        .transform-style-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; }
+        .rotate-y-180 { transform: rotateY(180deg); }
+        .perspective-1000 { perspective: 1000px; }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn { animation: fadeIn 0.6s ease-out forwards; }
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-5px); }
+          75% { transform: translateX(5px); }
+        }
+        .animate-shake { animation: shake 0.3s ease-in-out; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f5f5f4; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #d6d3d1; border-radius: 20px; }
+      `}</style>
+
+      <main className="flex-grow flex items-center justify-center">
+        {currentView === 'selection' && (
+          <UnitSelection units={availableUnits} onStart={handleStart} />
+        )}
+        {currentView === 'menu' && (
+          <MainMenu onViewChange={setCurrentView} progress={progress} onBack={() => setCurrentView('selection')} />
+        )}
+        {currentView === 'sketchbook' && (
+          <Sketchbook pool={activePool} onBack={() => setCurrentView('menu')} onMastery={handleMastery} />
+        )}
+        {currentView === 'workshop' && (
+          <WordWorkshop pool={activePool} onBack={() => setCurrentView('menu')} onMastery={handleMastery} />
+        )}
+        {currentView === 'garden' && (
+          <MeaningGarden pool={activePool} onBack={() => setCurrentView('menu')} onMastery={handleMastery} />
+        )}
+        {currentView === 'quiz' && (
+          <PebblePaths pool={activePool} onBack={() => setCurrentView('menu')} onMastery={handleMastery} />
+        )}
+      </main>
+      
+      <footer className="p-4 text-center text-stone-400 text-sm">
+        <p>Vocabulary Garden • {activeUnits.length > 0 ? `${activeUnits.length} Unit(s) Active` : 'Select Units'}</p>
+      </footer>
+    </div>
+  );
+}
