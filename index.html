@@ -382,6 +382,12 @@
             State.tempData = null;
             State.feedback = null;
 
+            // REPLAYABILITY CHECK:
+            // If the queue exists but is empty (game finished), reset it so they can play again.
+            if (State.gameQueues[viewId] && State.gameQueues[viewId].length === 0) {
+                State.gameQueues[viewId] = null; // Clear to trigger regeneration below
+            }
+
             // Initialize or Restore Game Queue
             if (!State.gameQueues[viewId]) {
                 let newQueue = [];
@@ -546,6 +552,7 @@
                 
                 // Calculate mini progress
                 let pct = 0;
+                // If it's a new session of a completed game, show actual queue length
                 if (State.gameQueues[id] && State.gameTotals[id] > 0) {
                     const remaining = State.gameQueues[id].length;
                     const total = State.gameTotals[id];
@@ -558,7 +565,8 @@
                 let classes = `group relative bg-white rounded-2xl p-4 shadow-sm border-2 transition-all text-left flex flex-col h-36 justify-between overflow-hidden`;
                 
                 if (isComplete) {
-                    classes += ` border-green-200 bg-green-50/30 opacity-80`; 
+                    // Show a bit greener to indicate done, but still active/hoverable
+                    classes += ` border-green-200 bg-green-50/20`; 
                 } else if (isSuggested) {
                     classes += ` border-amber-400 ring-4 ring-amber-100 ring-offset-2 animate-glow shadow-md transform scale-105 z-10`; 
                 } else {
@@ -576,7 +584,7 @@
                             ${info.title}
                             ${isSuggested ? '<span class="text-[10px] bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded-full uppercase tracking-wide">Next</span>' : ''}
                         </h3>
-                        <p class="text-xs text-stone-500 mb-2">${isComplete ? 'Complete!' : info.desc}</p>
+                        <p class="text-xs text-stone-500 mb-2">${isComplete ? 'Play Again' : info.desc}</p>
                         
                         <!-- Mini Progress Bar -->
                         <div class="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden">
@@ -688,7 +696,6 @@
                 e.stopPropagation(); 
                 State.feedback = false; 
                 State.queue.push(State.queue.shift()); // Rotate
-                // No updatePersistentQueue needed as content same, just order
                 render(); 
             };
             div.querySelector('#btn-gotit').onclick = (e) => { 
@@ -722,14 +729,15 @@
                 <div class="flex flex-wrap justify-center gap-2 mb-10 ${State.feedback === false ? 'animate-shake' : ''}" id="slots-area"></div>
                 <div class="flex flex-wrap justify-center gap-2 max-w-lg" id="tiles-area"></div>
                 ${State.feedback === true ? `<div class="fixed bottom-10 bg-green-600 text-white px-6 py-2 rounded-full shadow-lg flex items-center gap-2 animate-bounce">${ICONS.check} Built!</div>` : ''}
+                ${State.feedback === false ? `<div class="fixed bottom-10 bg-amber-600 text-white px-6 py-2 rounded-full shadow-lg flex items-center gap-2 animate-bounce">Spelling: ${item.w}</div>` : ''}
             `;
 
             const slotsArea = div.querySelector('#slots-area');
             State.tempData.placed.forEach((l, i) => {
                 const btn = document.createElement('button');
-                btn.className = `w-10 h-12 rounded-lg flex items-center justify-center text-xl font-bold shadow-inner border-2 transition-all ${l ? (State.feedback===true ? 'bg-green-100 border-green-300 text-green-700' : 'bg-stone-100 border-stone-300 text-stone-800') : 'bg-stone-50 border-stone-200 border-dashed'}`;
+                btn.className = `w-10 h-12 rounded-lg flex items-center justify-center text-xl font-bold shadow-inner border-2 transition-all ${l ? (State.feedback===true ? 'bg-green-100 border-green-300 text-green-700' : State.feedback===false ? 'bg-red-50 border-red-300 text-red-800' : 'bg-stone-100 border-stone-300 text-stone-800') : 'bg-stone-50 border-stone-200 border-dashed'}`;
                 btn.innerText = l ? l.val : '';
-                btn.onclick = () => { if (State.feedback === true || !l) return; State.tempData.shuffled.push(l); State.tempData.placed[i] = null; render(); };
+                btn.onclick = () => { if (State.feedback !== null || !l) return; State.tempData.shuffled.push(l); State.tempData.placed[i] = null; render(); };
                 slotsArea.appendChild(btn);
             });
 
@@ -739,21 +747,35 @@
                 btn.className = "w-10 h-12 bg-amber-200 rounded-lg shadow-sm border-t border-amber-100 flex items-center justify-center text-xl font-bold text-amber-900 active:translate-y-1 transition-transform";
                 btn.innerText = l.val;
                 btn.onclick = () => {
-                    if (State.feedback === true) return;
+                    if (State.feedback !== null) return;
                     const firstEmpty = State.tempData.placed.indexOf(null);
                     if (firstEmpty !== -1) {
                         State.tempData.placed[firstEmpty] = l;
                         State.tempData.shuffled = State.tempData.shuffled.filter(x => x.id !== l.id);
                         if (State.tempData.placed.indexOf(null) === -1) {
+                            // Check Word
                             if (State.tempData.placed.map(x => x.val).join('') === item.w) {
                                 State.feedback = true; 
                                 setTimeout(() => { 
                                     State.queue.shift(); 
-                                    updatePersistentQueue(); // SAVE PROGRESS
+                                    updatePersistentQueue();
                                     State.tempData = null; 
                                     checkVictory() || render(); 
                                 }, 1500);
-                            } else { State.feedback = false; setTimeout(() => { State.feedback = null; render(); }, 1000); }
+                            } else { 
+                                // WRONG SPELLING
+                                State.feedback = false; 
+                                render();
+                                setTimeout(() => { 
+                                    // Move to back
+                                    const moved = State.queue.shift();
+                                    State.queue.push(moved);
+                                    updatePersistentQueue();
+                                    State.tempData = null; 
+                                    State.feedback = null;
+                                    render(); 
+                                }, 2000); 
+                            }
                         }
                         render();
                     }
@@ -794,6 +816,7 @@
                 if (State.feedback) {
                     if (State.feedback.clicked === opt) cls = isCorrect ? "bg-green-100 border-green-500 text-green-800" : "bg-red-50 border-red-300 text-red-800 animate-shake";
                     else if (isCorrect && State.feedback.clicked !== opt) cls = "bg-green-50 border-green-300 opacity-70";
+                    else if (isCorrect && State.feedback.clicked === 'timeout') cls = "bg-green-100 border-green-500 text-green-800 animate-pulse";
                 }
 
                 btn.className = `p-5 rounded-2xl border-2 shadow-sm text-left transition-all flex items-start gap-4 ${cls}`;
@@ -802,14 +825,25 @@
                     if (State.feedback) return;
                     State.feedback = { clicked: opt };
                     render();
+                    
                     if (isCorrect) {
                         setTimeout(() => { 
                             State.queue.shift(); 
-                            updatePersistentQueue(); // SAVE PROGRESS
+                            updatePersistentQueue(); 
                             State.tempData = null; 
                             checkVictory() || render(); 
                         }, 1500);
-                    } else { setTimeout(() => { State.feedback = null; render(); }, 1500); }
+                    } else { 
+                        // WRONG: Highlight correct answer (it's handled by style logic above), wait, move to back
+                        setTimeout(() => { 
+                            const moved = State.queue.shift();
+                            State.queue.push(moved);
+                            updatePersistentQueue();
+                            State.tempData = null; 
+                            State.feedback = null;
+                            render(); 
+                        }, 2000); 
+                    }
                 };
                 optsContainer.appendChild(btn);
             });
@@ -873,7 +907,7 @@
             App.appendChild(div);
         }
 
-        // E. Order
+        // E. Order (Leaving standard shake logic for sorting)
         function renderOrder() {
              if (checkVictory()) return;
              
@@ -980,7 +1014,17 @@
                              State.tempData = null; 
                              checkVictory() || render(); 
                          }, 1500);
-                     } else { setTimeout(() => { State.tempData.feedback = null; render(); }, 1000); }
+                     } else { 
+                         // WRONG: Wait, Show, Move to Back
+                         setTimeout(() => { 
+                             const moved = State.queue.shift();
+                             State.queue.push(moved);
+                             updatePersistentQueue();
+                             State.tempData = null; 
+                             State.feedback = null;
+                             render(); 
+                         }, 2000); 
+                     }
                  };
                  grid.appendChild(btn);
             });
@@ -1039,7 +1083,17 @@
                              State.tempData = null; 
                              checkVictory() || render(); 
                          }, 1500);
-                     } else { setTimeout(() => { State.tempData.feedback = null; render(); }, 1000); }
+                     } else { 
+                         // WRONG: Wait, Show, Move to Back
+                         setTimeout(() => { 
+                             const moved = State.queue.shift();
+                             State.queue.push(moved);
+                             updatePersistentQueue();
+                             State.tempData = null; 
+                             State.feedback = null;
+                             render(); 
+                         }, 2000); 
+                     }
                 };
                 stones.appendChild(btn);
             });
