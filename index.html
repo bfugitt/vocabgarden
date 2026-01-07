@@ -61,7 +61,7 @@
     <script>
         // --- 1. DATA CONFIGURATION ---
      
-  const RAW_DATA = [
+   const RAW_DATA = [
         // UNIT 1
         { u: 1, w: "celebrity", d: "A famous person.", s: "star, famous person", a: "unknown, nobody", ex: "The singer is a huge ______ with millions of fans." },
         { u: 1, w: "counsel", d: "To give advice; advice.", s: "advise, guidance", a: "ignore, disregard", ex: "The coach offered wise ______ on how to win the game." },
@@ -339,7 +339,11 @@
             activeUnits: [],
             pool: [],      
             queue: [],     
-            completedGames: new Set(), // Track which activities are finished
+            completedGames: new Set(),
+            
+            // New Persisted Game Data
+            gameQueues: {}, // stores [item1, item2...] for each game
+            gameTotals: {}, // stores initial count to calculate percentage
             
             // Game specific
             tempData: null, 
@@ -378,26 +382,37 @@
             State.tempData = null;
             State.feedback = null;
 
-            // Initialize Game Queue
-            if (viewId === 'roots') {
-                State.queue = shuffle(State.pool.filter(i => (i.s && i.s !== 'void' && i.s !== '-') || (i.a && i.a !== 'void' && i.a !== '-')));
-            } else {
-                State.queue = shuffle([...State.pool]);
+            // Initialize or Restore Game Queue
+            if (!State.gameQueues[viewId]) {
+                let newQueue = [];
+                if (viewId === 'roots') {
+                    newQueue = shuffle(State.pool.filter(i => (i.s && i.s !== 'void' && i.s !== '-') || (i.a && i.a !== 'void' && i.a !== '-')));
+                } else {
+                    newQueue = shuffle([...State.pool]);
+                }
+                State.gameQueues[viewId] = newQueue;
+                State.gameTotals[viewId] = newQueue.length;
             }
-
+            
+            State.queue = State.gameQueues[viewId]; // Reference the persistent queue
             render();
         }
 
         function checkVictory() {
             if (State.queue.length === 0) {
-                // Mark current game as complete
                 if (State.view !== 'victory') State.completedGames.add(State.view);
-                
                 State.view = 'victory';
                 render();
                 return true;
             }
             return false;
+        }
+        
+        // Helper to sync queue state if array is replaced (for games that slice/filter)
+        function updatePersistentQueue() {
+            if (State.view !== 'victory' && State.view !== 'menu' && State.view !== 'selection') {
+                State.gameQueues[State.view] = State.queue;
+            }
         }
 
         function render() {
@@ -423,7 +438,6 @@
         // --- 5. SCREENS ---
 
         function renderSelection() {
-            // Natural sort for units (1, 2, 10 vs 1, 10, 2)
             const units = [...new Set(RAW_DATA.map(i => i.u))].sort((a,b) => 
                 String(a).localeCompare(String(b), undefined, {numeric: true})
             );
@@ -469,7 +483,11 @@
             container.querySelector('#btn-start').onclick = () => {
                 if (State.activeUnits.length === 0) return;
                 State.pool = RAW_DATA.filter(item => State.activeUnits.includes(item.u));
-                State.completedGames.clear(); // Reset progress for new session
+                // Clear persistence on new start
+                State.completedGames.clear();
+                State.gameQueues = {};
+                State.gameTotals = {};
+                
                 State.view = 'menu';
                 render();
             };
@@ -482,16 +500,13 @@
         }
 
         function renderMenu() {
-            // Check for Grand Victory
             if (State.completedGames.size === GAMES_ORDER.length) {
                 renderGrandVictory();
                 return;
             }
 
-            // Determine Suggested Game (First incomplete game in sequence)
             const suggestedGame = GAMES_ORDER.find(id => !State.completedGames.has(id));
             const completionPct = Math.round((State.completedGames.size / GAMES_ORDER.length) * 100);
-            // Visual garden level based on percentage
             const gardenLevel = Math.floor((completionPct / 100) * 5);
 
             const div = document.createElement('div');
@@ -500,7 +515,6 @@
                 <div class="w-full flex justify-start mb-2"><button id="btn-back-units" class="text-stone-400 hover:text-stone-600 text-sm flex items-center gap-1">${ICONS.arrowLeft} Select different units</button></div>
                 <header class="text-center mb-6 w-full"><h1 class="text-4xl font-serif text-stone-800 mb-1">The Garden</h1><p class="text-stone-500 italic text-sm">Choose a path to explore.</p></header>
                 
-                <!-- Progress Dashboard -->
                 <div class="w-full bg-gradient-to-b from-sky-50 to-white border border-stone-200 rounded-3xl p-6 mb-8 shadow-sm relative overflow-hidden h-40">
                     <div class="absolute top-4 right-4 text-yellow-400 animate-pulse-slow">${ICONS.sun}</div><div class="absolute top-6 left-10 text-sky-100">${ICONS.cloud}</div>
                     <div class="flex flex-col items-center justify-end h-full relative z-10 pb-2">
@@ -529,16 +543,24 @@
                 const info = GAME_INFO[id];
                 const isComplete = State.completedGames.has(id);
                 const isSuggested = id === suggestedGame;
+                
+                // Calculate mini progress
+                let pct = 0;
+                if (State.gameQueues[id] && State.gameTotals[id] > 0) {
+                    const remaining = State.gameQueues[id].length;
+                    const total = State.gameTotals[id];
+                    pct = Math.round(((total - remaining) / total) * 100);
+                } else if (isComplete) {
+                    pct = 100;
+                }
 
                 const btn = document.createElement('button');
-                // Base classes
                 let classes = `group relative bg-white rounded-2xl p-4 shadow-sm border-2 transition-all text-left flex flex-col h-36 justify-between overflow-hidden`;
                 
-                // State based classes
                 if (isComplete) {
-                    classes += ` border-green-200 bg-green-50/30 opacity-80`; // Dim completed
+                    classes += ` border-green-200 bg-green-50/30 opacity-80`; 
                 } else if (isSuggested) {
-                    classes += ` border-amber-400 ring-4 ring-amber-100 ring-offset-2 animate-glow shadow-md transform scale-105 z-10`; // Highlight suggested
+                    classes += ` border-amber-400 ring-4 ring-amber-100 ring-offset-2 animate-glow shadow-md transform scale-105 z-10`; 
                 } else {
                     classes += ` border-stone-100 hover:border-${info.color}-200 hover:shadow-md`;
                 }
@@ -549,12 +571,17 @@
                     <div class="z-10 bg-${info.color}-100 w-10 h-10 rounded-lg flex items-center justify-center text-${info.color}-700 mb-2">
                         ${isComplete ? ICONS.check : info.icon}
                     </div>
-                    <div class="z-10">
+                    <div class="z-10 w-full">
                         <h3 class="text-base font-bold text-stone-800 mb-0 leading-tight flex items-center gap-2">
                             ${info.title}
                             ${isSuggested ? '<span class="text-[10px] bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded-full uppercase tracking-wide">Next</span>' : ''}
                         </h3>
-                        <p class="text-xs text-stone-500">${isComplete ? 'Complete!' : info.desc}</p>
+                        <p class="text-xs text-stone-500 mb-2">${isComplete ? 'Complete!' : info.desc}</p>
+                        
+                        <!-- Mini Progress Bar -->
+                        <div class="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden">
+                            <div class="h-full bg-${isComplete ? 'green' : info.color}-500 transition-all duration-500" style="width: ${pct}%"></div>
+                        </div>
                     </div>
                 `;
                 btn.onclick = () => initGame(id);
@@ -613,6 +640,7 @@
             
             div.querySelector('#btn-restart-activities').onclick = () => { 
                 State.completedGames.clear(); 
+                State.gameQueues = {}; // clear progress
                 State.view = 'menu'; 
                 render(); 
             };
@@ -625,8 +653,7 @@
             App.appendChild(div);
         }
 
-        // --- 6. GAMES (Standard renders unchanged from previous version, omitted for brevity but logic remains) ---
-        // Copying previous game logic but ensuring they call checkVictory() correctly
+        // --- 6. GAMES ---
 
         // A. Sketchbook
         function renderSketchbook() {
@@ -657,8 +684,20 @@
             `;
             div.querySelector('#card-container').onclick = () => { State.feedback = !State.feedback; render(); };
             div.querySelector('#back-btn').onclick = () => { State.view = 'menu'; render(); };
-            div.querySelector('#btn-again').onclick = (e) => { e.stopPropagation(); State.feedback = false; State.queue.push(State.queue.shift()); render(); };
-            div.querySelector('#btn-gotit').onclick = (e) => { e.stopPropagation(); State.progress++; State.feedback = false; State.queue.shift(); if(!checkVictory()) render(); };
+            div.querySelector('#btn-again').onclick = (e) => { 
+                e.stopPropagation(); 
+                State.feedback = false; 
+                State.queue.push(State.queue.shift()); // Rotate
+                // No updatePersistentQueue needed as content same, just order
+                render(); 
+            };
+            div.querySelector('#btn-gotit').onclick = (e) => { 
+                e.stopPropagation(); 
+                State.feedback = false; 
+                State.queue.shift(); // Remove
+                updatePersistentQueue(); // SAVE PROGRESS
+                if(!checkVictory()) render(); 
+            };
             App.appendChild(div);
         }
 
@@ -707,8 +746,13 @@
                         State.tempData.shuffled = State.tempData.shuffled.filter(x => x.id !== l.id);
                         if (State.tempData.placed.indexOf(null) === -1) {
                             if (State.tempData.placed.map(x => x.val).join('') === item.w) {
-                                State.feedback = true; State.progress++;
-                                setTimeout(() => { State.queue.shift(); State.tempData = null; checkVictory() || render(); }, 1500);
+                                State.feedback = true; 
+                                setTimeout(() => { 
+                                    State.queue.shift(); 
+                                    updatePersistentQueue(); // SAVE PROGRESS
+                                    State.tempData = null; 
+                                    checkVictory() || render(); 
+                                }, 1500);
                             } else { State.feedback = false; setTimeout(() => { State.feedback = null; render(); }, 1000); }
                         }
                         render();
@@ -759,8 +803,12 @@
                     State.feedback = { clicked: opt };
                     render();
                     if (isCorrect) {
-                        State.progress++;
-                        setTimeout(() => { State.queue.shift(); State.tempData = null; checkVictory() || render(); }, 1500);
+                        setTimeout(() => { 
+                            State.queue.shift(); 
+                            updatePersistentQueue(); // SAVE PROGRESS
+                            State.tempData = null; 
+                            checkVictory() || render(); 
+                        }, 1500);
                     } else { setTimeout(() => { State.feedback = null; render(); }, 1500); }
                 };
                 optsContainer.appendChild(btn);
@@ -810,10 +858,11 @@
                 btn.disabled = isMatched;
                 btn.onclick = () => {
                     if (State.tempData.selectedSeed === item.w) {
-                        State.tempData.matched.push(item.w); State.tempData.selectedSeed = null; State.progress++;
+                        State.tempData.matched.push(item.w); State.tempData.selectedSeed = null; 
                         if (State.tempData.matched.length === State.tempData.seeds.length) {
                              // Remove these 3 from queue
                              State.queue = State.queue.slice(State.tempData.seeds.length);
+                             updatePersistentQueue(); // SAVE PROGRESS
                              setTimeout(() => { State.tempData = null; checkVictory() || render(); }, 1500);
                         } else render();
                     } else { State.tempData.selectedSeed = null; render(); }
@@ -830,7 +879,6 @@
              
              // Take up to 5
              if (!State.tempData) {
-                 // Check if we have enough items (min 2)
                  if (State.queue.length < 2) {
                      State.queue = []; checkVictory(); return;
                  }
@@ -869,9 +917,9 @@
                      if (item.w === nextCorrect.w) {
                          State.tempData.foundCount++;
                          if (State.tempData.foundCount === State.tempData.items.length) {
-                             State.progress++;
                              // Remove played from queue
                              State.queue = State.queue.slice(State.tempData.items.length);
+                             updatePersistentQueue(); // SAVE PROGRESS
                              setTimeout(() => { State.tempData = null; checkVictory() || render(); }, 1500);
                          }
                          render();
@@ -886,7 +934,6 @@
         // F. Roots
         function renderRoots() {
             if (checkVictory()) return;
-            // Pre-filtered in initGame, so assume valid
             const target = State.queue[0];
             
             if (!State.tempData || State.tempData.word !== target.w) {
@@ -927,8 +974,12 @@
                      State.tempData.feedback = isCorrect;
                      render();
                      if (isCorrect) {
-                         State.progress++;
-                         setTimeout(() => { State.queue.shift(); State.tempData = null; checkVictory() || render(); }, 1500);
+                         setTimeout(() => { 
+                             State.queue.shift(); 
+                             updatePersistentQueue(); // SAVE PROGRESS
+                             State.tempData = null; 
+                             checkVictory() || render(); 
+                         }, 1500);
                      } else { setTimeout(() => { State.tempData.feedback = null; render(); }, 1000); }
                  };
                  grid.appendChild(btn);
@@ -982,8 +1033,12 @@
                      if (State.tempData.feedback !== null) return;
                      State.tempData.feedback = isCorrect; render();
                      if (isCorrect) {
-                         State.progress++;
-                         setTimeout(() => { State.queue.shift(); State.tempData = null; checkVictory() || render(); }, 1500);
+                         setTimeout(() => { 
+                             State.queue.shift(); 
+                             updatePersistentQueue(); // SAVE PROGRESS
+                             State.tempData = null; 
+                             checkVictory() || render(); 
+                         }, 1500);
                      } else { setTimeout(() => { State.tempData.feedback = null; render(); }, 1000); }
                 };
                 stones.appendChild(btn);
