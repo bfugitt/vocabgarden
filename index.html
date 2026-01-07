@@ -1,10 +1,64 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { BookOpen, Sprout, Hammer, ArrowLeft, Check, RefreshCcw, X, Star, Sun, Cloud, Leaf, Layers, ArrowRight } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vocabulary Garden</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3, .font-serif { font-family: 'Merriweather', serif; }
+        
+        /* Custom Animations */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fadeIn { animation: fadeIn 0.5s ease-out forwards; }
+        
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+        .animate-shake { animation: shake 0.3s ease-in-out; }
+        
+        @keyframes pulse-slow { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } }
+        .animate-pulse-slow { animation: pulse-slow 3s infinite; }
 
-// --- DATA CONFIGURATION ---
-// Paste your original data array here. 
-// Expected format: Objects with keys: u (unit), w (word), d (def), s (syn), a (ant)
-  const RAW_DATA = [
+        /* Flip Card Styles */
+        .perspective-1000 { perspective: 1000px; }
+        .transform-style-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; }
+        .rotate-y-180 { transform: rotateY(180deg); }
+        .card-inner { transition: transform 0.6s; }
+        .flipped .card-inner { transform: rotateY(180deg); }
+
+        /* Paper Pattern */
+        .bg-paper-pattern {
+            background-image: radial-gradient(#d6d3d1 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        /* Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f5f5f4; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #d6d3d1; border-radius: 20px; }
+    </style>
+</head>
+<body class="bg-stone-50 text-stone-800 selection:bg-amber-100 min-h-screen flex flex-col">
+
+    <!-- MAIN APP CONTAINER -->
+    <main id="app" class="flex-grow flex flex-col items-center justify-center w-full p-4">
+        <!-- Content will be injected here by JavaScript -->
+    </main>
+
+    <footer class="p-4 text-center text-stone-400 text-sm">
+        <p>Vocabulary Garden • <span id="unit-count-display">0</span> Units Active</p>
+    </footer>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // --- 1. DATA CONFIGURATION ---
+     
+      const RAW_DATA = [
         // UNIT 1
         { u: 1, w: "celebrity", d: "A famous person.", s: "star, famous person", a: "unknown, nobody", ex: "The singer is a huge ______ with millions of fans." },
         { u: 1, w: "counsel", d: "To give advice; advice.", s: "advise, guidance", a: "ignore, disregard", ex: "The coach offered wise ______ on how to win the game." },
@@ -257,659 +311,594 @@ import { BookOpen, Sprout, Hammer, ArrowLeft, Check, RefreshCcw, X, Star, Sun, C
         { u: 18, w: "tribute", d: "Something given or done to show respect.", s: "praise, honor", a: "insult, criticism", ex: "We held a short ______ to honor the founder of the school." }
     ];
 
-// --- COMPONENTS ---
+        // --- 2. ICONS ---
+        const ICONS = {
+            arrowLeft: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>`,
+            arrowRight: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>`,
+            check: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`,
+            x: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`,
+            refresh: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>`,
+            sprout: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 20h10"/><path d="M10 20c5.5-2.5.8-6.4 3-10"/><path d="M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.5.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8z"/><path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1-1 1.6-2.3 1.7-4.6-2.7.1-4 1-4.9 2z"/></svg>`,
+            book: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>`,
+            hammer: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 12-8.5 8.5c-.83.83-2.17.83-3 0 0 0 0 0 0 0a2.12 2.12 0 0 1 0-3L12 9"/><path d="M17.64 15 22 10.64"/><path d="m20.91 11.7-1.25-1.25c-.6-.6-.93-1.4-.93-2.25V7.86c0-.55-.45-1-1-1H14.14c-.83 0-1.64.34-2.25.92L9.64 10"/></svg>`,
+            leaf: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>`,
+            layers: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg>`,
+            alignLeft: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="15" x2="3" y1="12" y2="12"/><line x1="17" x2="3" y1="18" y2="18"/></svg>`,
+            split: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"/><path d="M8 3H3v5"/><path d="M12 22v-8.3a4 4 0 0 0-1.172-2.872L3 3"/><path d="m15 9 6-6"/></svg>`,
+            message: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`,
+            sun: `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>`,
+            cloud: `<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M17.5 19c0-1.7-1.3-3-3-3h-11c-1.7 0-3 1.3-3 3s1.3 3 3 3h11c1.7 0 3-1.3 3-3z"/><path d="M17.5 19a6 6 0 0 0-5-11.8A5.5 5.5 0 0 0 0 13"/></svg>`
+        };
 
-// 0. Unit Selection (The Garden Gate)
-const UnitSelection = ({ units, onStart }) => {
-  const [selected, setSelected] = useState([]);
+        // --- 3. STATE MANAGEMENT ---
+        const State = {
+            view: 'selection',
+            activeUnits: [],
+            pool: [],      // The raw pool for selected units
+            queue: [],     // The active playlist for the current game
+            progress: 0,
+            
+            // Game specific
+            tempData: null, 
+            feedback: null 
+        };
 
-  const toggleUnit = (unit) => {
-    setSelected(prev => 
-      prev.includes(unit) ? prev.filter(u => u !== unit) : [...prev, unit]
-    );
-  };
+        const App = document.getElementById('app');
+        const UnitDisplay = document.getElementById('unit-count-display');
 
-  const handleSelectAll = () => {
-    if (selected.length === units.length) setSelected([]);
-    else setSelected([...units]);
-  };
+        // Helper: Shuffle Array
+        function shuffle(array) {
+            let currentIndex = array.length, randomIndex;
+            while (currentIndex != 0) {
+                randomIndex = Math.floor(Math.random() * currentIndex);
+                currentIndex--;
+                [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+            }
+            return array;
+        }
 
-  return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] w-full max-w-2xl mx-auto p-6 animate-fadeIn">
-      <div className="text-center mb-8">
-        <h1 className="text-4xl md:text-5xl font-serif text-stone-800 mb-2">Vocabulary Garden</h1>
-        <p className="text-stone-500 italic">Open the gate to begin.</p>
-      </div>
+        // --- 4. NAVIGATION & INIT ---
 
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-200 w-full mb-8">
-        <div className="flex justify-between items-center mb-4 pb-4 border-b border-stone-100">
-          <h2 className="text-lg font-bold text-stone-700">Select Collections</h2>
-          <button 
-            onClick={handleSelectAll}
-            className="text-sm text-green-600 font-medium hover:text-green-800"
-          >
-            {selected.length === units.length ? "Deselect All" : "Select All"}
-          </button>
-        </div>
-        
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-          {units.map(unit => (
-            <button
-              key={unit}
-              onClick={() => toggleUnit(unit)}
-              className={`flex items-center p-3 rounded-lg text-left transition-all border-2
-                ${selected.includes(unit) 
-                  ? 'bg-green-50 border-green-500 text-green-900' 
-                  : 'bg-stone-50 border-transparent hover:bg-stone-100 text-stone-600'
-                }`}
-            >
-              <div className={`w-5 h-5 rounded border mr-3 flex items-center justify-center transition-colors
-                ${selected.includes(unit) ? 'bg-green-500 border-green-500' : 'border-stone-300 bg-white'}
-              `}>
-                {selected.includes(unit) && <Check size={14} className="text-white" />}
-              </div>
-              <span className="text-sm font-medium truncate">{unit}</span>
-            </button>
-          ))}
-        </div>
-      </div>
+        function initGame(viewId) {
+            State.view = viewId;
+            State.tempData = null;
+            State.feedback = null;
 
-      <button 
-        disabled={selected.length === 0}
-        onClick={() => onStart(selected)}
-        className={`px-8 py-3 rounded-full font-bold text-lg shadow-md transition-all flex items-center gap-2
-          ${selected.length === 0 
-            ? 'bg-stone-200 text-stone-400 cursor-not-allowed' 
-            : 'bg-green-700 text-white hover:bg-green-800 hover:scale-105'
-          }`}
-      >
-        Enter Garden <ArrowRight size={20} />
-      </button>
-    </div>
-  );
-};
+            // Initialize Game Queue based on mode
+            if (viewId === 'roots') {
+                // For roots, only include words that have valid syn/ant
+                State.queue = shuffle(State.pool.filter(i => (i.s && i.s !== 'void' && i.s !== '-') || (i.a && i.a !== 'void' && i.a !== '-')));
+            } else {
+                State.queue = shuffle([...State.pool]);
+            }
 
-// 1. The Sketchbook (Flashcards)
-const Sketchbook = ({ pool, onBack, onMastery }) => {
-  const [index, setIndex] = useState(0);
-  const [flipped, setFlipped] = useState(false);
-  
-  const currentCard = pool[index];
+            render();
+        }
 
-  const nextCard = () => {
-    setFlipped(false);
-    setTimeout(() => {
-      setIndex((prev) => (prev + 1) % pool.length);
-    }, 200);
-  };
+        function checkVictory() {
+            if (State.queue.length === 0) {
+                State.view = 'victory';
+                render();
+                return true;
+            }
+            return false;
+        }
 
-  const markMastered = () => {
-    onMastery(); 
-    nextCard();
-  };
+        function render() {
+            UnitDisplay.innerText = State.activeUnits.length;
+            App.innerHTML = ''; 
 
-  return (
-    <div className="flex flex-col items-center justify-center h-full w-full p-4 animate-fadeIn">
-      <div className="flex items-center justify-between w-full max-w-md mb-6">
-        <button onClick={onBack} className="flex items-center text-stone-600 hover:text-stone-800 transition-colors">
-          <ArrowLeft size={20} className="mr-2" /> Garden
-        </button>
-        <span className="text-stone-500 font-serif italic">Card {index + 1} of {pool.length}</span>
-      </div>
+            switch(State.view) {
+                case 'selection': renderSelection(); break;
+                case 'menu': renderMenu(); break;
+                case 'victory': renderVictory(); break;
+                case 'sketchbook': renderSketchbook(); break;
+                case 'workshop': renderWorkshop(); break;
+                case 'quiz': renderQuiz(); break;
+                case 'garden': renderGarden(); break;
+                case 'order': renderOrder(); break;
+                case 'roots': renderRoots(); break;
+                case 'story': renderStory(); break;
+            }
+        }
 
-      <div 
-        onClick={() => setFlipped(!flipped)}
-        className="cursor-pointer group perspective-1000 w-full max-w-md h-96 relative"
-      >
-        <div className={`relative w-full h-full transition-transform duration-700 transform-style-3d ${flipped ? 'rotate-y-180' : ''}`}>
-          
-          {/* Front */}
-          <div className="absolute w-full h-full backface-hidden bg-white rounded-xl shadow-[4px_4px_0px_0px_rgba(214,211,209,1)] border-2 border-stone-200 flex flex-col items-center justify-center p-8 bg-paper-pattern">
-            <span className="text-stone-400 text-xs absolute top-4 right-4 uppercase tracking-wider">{currentCard.u}</span>
-            <h2 className="text-4xl text-stone-800 font-serif font-medium tracking-wide text-center">{currentCard.w}</h2>
-            <div className="mt-8 text-stone-400 text-sm flex items-center gap-2">
-              <RefreshCcw size={14} /> Tap to reveal meaning
-            </div>
-          </div>
+        // --- 5. SCREENS ---
 
-          {/* Back */}
-          <div className="absolute w-full h-full backface-hidden bg-stone-50 rounded-xl shadow-[4px_4px_0px_0px_rgba(168,162,158,1)] border-2 border-stone-300 flex flex-col items-center justify-center p-8 rotate-y-180 bg-paper-pattern">
-            <span className="text-stone-400 text-sm absolute top-4 right-4">Definition</span>
-            <p className="text-xl text-stone-700 text-center font-medium leading-relaxed mb-6">
-              "{currentCard.d}"
-            </p>
-            <div className="w-full grid grid-cols-2 gap-4 mt-4 border-t-2 border-dashed border-stone-200 pt-4">
-              <div className="text-center">
-                <span className="block text-xs uppercase tracking-widest text-stone-400 mb-1">Synonym</span>
-                <span className="text-stone-600 font-serif italic">{currentCard.s || '-'}</span>
-              </div>
-              <div className="text-center">
-                <span className="block text-xs uppercase tracking-widest text-stone-400 mb-1">Antonym</span>
-                <span className="text-stone-600 font-serif italic">{currentCard.a || '-'}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+        function renderSelection() {
+            const units = [...new Set(RAW_DATA.map(i => i.u))].sort();
+            const container = document.createElement('div');
+            container.className = "flex flex-col items-center justify-center min-h-[60vh] w-full max-w-2xl mx-auto animate-fadeIn";
+            
+            container.innerHTML = `
+                <div class="text-center mb-8">
+                    <h1 class="text-4xl md:text-5xl font-serif text-stone-800 mb-2">Vocabulary Garden</h1>
+                    <p class="text-stone-500 italic">Open the gate to begin.</p>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-stone-200 w-full mb-8">
+                    <div class="flex justify-between items-center mb-4 pb-4 border-b border-stone-100">
+                        <h2 class="text-lg font-bold text-stone-700">Select Collections</h2>
+                        <button id="btn-toggle-all" class="text-sm text-green-600 font-medium hover:text-green-800">
+                            ${State.activeUnits.length === units.length ? "Deselect All" : "Select All"}
+                        </button>
+                    </div>
+                    <div id="unit-list" class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar"></div>
+                </div>
+                <button id="btn-start" class="px-8 py-3 rounded-full font-bold text-lg shadow-md transition-all flex items-center gap-2 ${State.activeUnits.length > 0 ? 'bg-green-700 text-white hover:bg-green-800 hover:scale-105' : 'bg-stone-200 text-stone-400 cursor-not-allowed'}">
+                    Enter Garden ${ICONS.arrowRight}
+                </button>
+            `;
 
-      <div className="flex gap-4 mt-8 w-full max-w-md">
-        <button 
-          onClick={(e) => { e.stopPropagation(); nextCard(); }}
-          className="flex-1 py-3 px-6 rounded-lg border-2 border-stone-300 text-stone-500 font-bold hover:bg-stone-100 transition-colors"
-        >
-          Study Again
-        </button>
-        <button 
-          onClick={(e) => { e.stopPropagation(); markMastered(); }}
-          className="flex-1 py-3 px-6 rounded-lg bg-green-700/90 text-white font-bold shadow-md hover:bg-green-800 hover:shadow-lg transition-all flex items-center justify-center gap-2"
-        >
-          <Check size={18} /> Got it!
-        </button>
-      </div>
-    </div>
-  );
-};
-
-// 2. Word Workshop (Spelling)
-const WordWorkshop = ({ pool, onBack, onMastery }) => {
-  const [currentIdx, setCurrentIdx] = useState(0);
-  const [shuffledLetters, setShuffledLetters] = useState([]);
-  const [placedLetters, setPlacedLetters] = useState([]);
-  const [isCorrect, setIsCorrect] = useState(null);
-
-  const targetWord = pool[currentIdx].w;
-
-  useEffect(() => {
-    resetRound();
-  }, [currentIdx]);
-
-  const resetRound = () => {
-    const letters = pool[currentIdx].w.split('').map((l, i) => ({ val: l, id: i }));
-    // Shuffle
-    for (let i = letters.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [letters[i], letters[j]] = [letters[j], letters[i]];
-    }
-    setShuffledLetters(letters);
-    setPlacedLetters(Array(letters.length).fill(null));
-    setIsCorrect(null);
-  };
-
-  const handleTileClick = (letterObj) => {
-    if (isCorrect) return; 
-    const firstEmptyIndex = placedLetters.indexOf(null);
-    if (firstEmptyIndex !== -1) {
-      const newPlaced = [...placedLetters];
-      newPlaced[firstEmptyIndex] = letterObj;
-      setPlacedLetters(newPlaced);
-      setShuffledLetters(prev => prev.filter(l => l.id !== letterObj.id));
-      if (firstEmptyIndex === placedLetters.length - 1) checkWin(newPlaced);
-    }
-  };
-
-  const handleSlotClick = (index) => {
-    if (isCorrect) return;
-    const letterToReturn = placedLetters[index];
-    if (letterToReturn) {
-      const newPlaced = [...placedLetters];
-      newPlaced[index] = null;
-      setPlacedLetters(newPlaced);
-      setShuffledLetters(prev => [...prev, letterToReturn]);
-    }
-  };
-
-  const checkWin = (currentPlaced) => {
-    const attemptedWord = currentPlaced.map(l => l.val).join('');
-    if (attemptedWord === targetWord) {
-      setIsCorrect(true);
-      onMastery();
-      setTimeout(() => {
-        if (currentIdx < pool.length - 1) setCurrentIdx(prev => prev + 1);
-        else setCurrentIdx(0); 
-      }, 1500);
-    } else {
-      setIsCorrect(false);
-      setTimeout(() => setIsCorrect(null), 1000);
-    }
-  };
-
-  return (
-    <div className="flex flex-col items-center justify-start h-full w-full p-4 animate-fadeIn">
-      <div className="flex items-center justify-between w-full max-w-lg mb-8">
-        <button onClick={onBack} className="flex items-center text-stone-600 hover:text-stone-800">
-          <ArrowLeft size={20} className="mr-2" /> Garden
-        </button>
-        <span className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-xs font-bold tracking-wider">WORKSHOP</span>
-      </div>
-
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-200 w-full max-w-lg text-center mb-8 relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-1 bg-orange-300"></div>
-        <h3 className="text-stone-400 text-sm uppercase tracking-widest mb-2">Build the word for:</h3>
-        <p className="text-xl text-stone-800 font-medium leading-relaxed">"{pool[currentIdx].d}"</p>
-      </div>
-
-      <div className={`flex flex-wrap justify-center gap-2 mb-10 transition-transform ${isCorrect === false ? 'animate-shake' : ''}`}>
-        {placedLetters.map((letter, idx) => (
-          <button
-            key={idx}
-            onClick={() => handleSlotClick(idx)}
-            className={`w-10 h-12 md:w-12 md:h-14 rounded-lg flex items-center justify-center text-xl md:text-2xl font-bold shadow-inner transition-all
-              ${letter 
-                ? isCorrect === true 
-                  ? 'bg-green-100 text-green-700 border-2 border-green-300' 
-                  : 'bg-stone-100 text-stone-800 border-2 border-stone-300 hover:bg-red-50' 
-                : 'bg-stone-50 border-2 border-dashed border-stone-200'
-              }`}
-          >
-            {letter ? letter.val : ''}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex flex-wrap justify-center gap-2 md:gap-3 max-w-lg">
-        {shuffledLetters.map((letter) => (
-          <button
-            key={letter.id}
-            onClick={() => handleTileClick(letter)}
-            className="w-10 h-12 md:w-12 md:h-14 bg-amber-200 rounded-lg shadow-[0px_4px_0px_0px_rgba(217,119,6,1)] border-t border-amber-100 flex items-center justify-center text-xl md:text-2xl font-bold text-amber-900 active:translate-y-1 active:shadow-none transition-transform"
-          >
-            {letter.val}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-// 3. Pebble Paths (Quiz / Multiple Choice)
-const PebblePaths = ({ pool, onBack, onMastery }) => {
-  const [currentIdx, setCurrentIdx] = useState(0);
-  const [options, setOptions] = useState([]);
-  const [selectedOption, setSelectedOption] = useState(null);
-  const [isCorrect, setIsCorrect] = useState(null);
-
-  useEffect(() => {
-    generateQuestion();
-  }, [currentIdx]);
-
-  const generateQuestion = () => {
-    const correct = pool[currentIdx];
-    // Get 3 distractors
-    const distractors = pool
-        .filter(i => i.w !== correct.w)
-        .sort(() => 0.5 - Math.random())
-        .slice(0, 3);
-    
-    const allOptions = [...distractors, correct].sort(() => 0.5 - Math.random());
-    setOptions(allOptions);
-    setSelectedOption(null);
-    setIsCorrect(null);
-  };
-
-  const handleSelect = (item) => {
-    if (selectedOption) return; // Lock
-    setSelectedOption(item);
-    
-    const correct = item.w === pool[currentIdx].w;
-    setIsCorrect(correct);
-
-    if (correct) {
-      onMastery();
-      setTimeout(() => {
-        if (currentIdx < pool.length - 1) setCurrentIdx(prev => prev + 1);
-        else setCurrentIdx(0);
-      }, 1500);
-    } else {
-       setTimeout(() => {
-           setSelectedOption(null);
-           setIsCorrect(null);
-       }, 1500);
-    }
-  };
-
-  return (
-    <div className="flex flex-col items-center justify-start h-full w-full p-4 animate-fadeIn">
-        <div className="flex items-center justify-between w-full max-w-2xl mb-8">
-            <button onClick={onBack} className="flex items-center text-stone-600 hover:text-stone-800">
-            <ArrowLeft size={20} className="mr-2" /> Garden
-            </button>
-            <span className="bg-slate-100 text-slate-800 px-3 py-1 rounded-full text-xs font-bold tracking-wider">PEBBLE SORTING</span>
-        </div>
-
-        <div className="text-center mb-8">
-            <span className="text-stone-400 text-sm uppercase tracking-widest">Find the meaning of</span>
-            <h2 className="text-4xl text-stone-800 font-serif font-bold mt-2">{pool[currentIdx].w}</h2>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 w-full max-w-2xl">
-            {options.map((opt, i) => {
-                const isSelected = selectedOption === opt;
-                const isTarget = opt.w === pool[currentIdx].w;
+            const list = container.querySelector('#unit-list');
+            units.forEach(u => {
+                const isSelected = State.activeUnits.includes(u);
+                const btn = document.createElement('button');
+                btn.className = `flex items-center p-3 rounded-lg text-left transition-all border-2 w-full ${isSelected ? 'bg-green-50 border-green-500 text-green-900' : 'bg-stone-50 border-transparent hover:bg-stone-100 text-stone-600'}`;
+                // Simplified Display to handle both Number and String units gracefully
+                const unitLabel = typeof u === 'string' && u.includes(':') ? u.split(':')[0] : `Unit ${u}`;
                 
-                let styleClass = "bg-white border-stone-200 hover:border-slate-400 hover:bg-slate-50";
-                if (isSelected) {
-                    if (isTarget) styleClass = "bg-green-100 border-green-500 text-green-800 shadow-none";
-                    else styleClass = "bg-red-50 border-red-300 text-red-800 shadow-none animate-shake";
-                } else if (selectedOption && isTarget) {
-                    // Show correct answer if wrong one picked
-                    styleClass = "bg-green-50 border-green-300 text-green-700 opacity-70";
+                btn.innerHTML = `<div class="w-5 h-5 rounded border mr-3 flex items-center justify-center transition-colors ${isSelected ? 'bg-green-500 border-green-500' : 'border-stone-300 bg-white'}">${isSelected ? `<span class="text-white">${ICONS.check}</span>` : ''}</div><span class="text-sm font-medium truncate">${u}</span>`;
+                btn.onclick = () => {
+                    if (isSelected) State.activeUnits = State.activeUnits.filter(x => x !== u);
+                    else State.activeUnits.push(u);
+                    render();
+                };
+                list.appendChild(btn);
+            });
+
+            container.querySelector('#btn-start').onclick = () => {
+                if (State.activeUnits.length === 0) return;
+                State.pool = RAW_DATA.filter(item => State.activeUnits.includes(item.u));
+                State.view = 'menu';
+                render();
+            };
+            container.querySelector('#btn-toggle-all').onclick = () => {
+                if (State.activeUnits.length === units.length) State.activeUnits = [];
+                else State.activeUnits = [...units];
+                render();
+            };
+            App.appendChild(container);
+        }
+
+        function renderMenu() {
+            const gardenLevel = Math.min(Math.floor(State.progress / 5), 5);
+            const div = document.createElement('div');
+            div.className = "flex flex-col items-center w-full max-w-5xl mx-auto animate-fadeIn";
+            div.innerHTML = `
+                <div class="w-full flex justify-start mb-2"><button id="btn-back-units" class="text-stone-400 hover:text-stone-600 text-sm flex items-center gap-1">${ICONS.arrowLeft} Select different units</button></div>
+                <header class="text-center mb-6 w-full"><h1 class="text-4xl font-serif text-stone-800 mb-1">The Garden</h1><p class="text-stone-500 italic text-sm">Choose a path to explore.</p></header>
+                <div class="w-full bg-gradient-to-b from-sky-50 to-white border border-stone-200 rounded-3xl p-6 mb-8 shadow-sm relative overflow-hidden h-40">
+                    <div class="absolute top-4 right-4 text-yellow-400 animate-pulse-slow">${ICONS.sun}</div><div class="absolute top-6 left-10 text-sky-100">${ICONS.cloud}</div>
+                    <div class="flex flex-col items-center justify-end h-full relative z-10 pb-2">
+                        <div class="flex items-end gap-3 mb-2" id="plant-container"></div>
+                        <div class="w-64 h-3 bg-stone-200 rounded-full overflow-hidden"><div class="h-full bg-green-500 transition-all duration-500" style="width: ${Math.min(State.progress * 5, 100)}%"></div></div>
+                        <p class="mt-2 text-stone-600 font-bold text-xs">${State.progress} Seeds Sprouted</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full" id="menu-grid"></div>
+            `;
+
+            const plantCont = div.querySelector('#plant-container');
+            for(let i=0; i<5; i++) {
+                const p = document.createElement('div');
+                const isGrown = i < gardenLevel;
+                p.className = `transition-all duration-1000 ${isGrown ? 'opacity-100 translate-y-0 text-green-600' : 'opacity-20 translate-y-8 scale-50 text-green-300'}`;
+                p.innerHTML = ICONS.sprout;
+                plantCont.appendChild(p);
+            }
+
+            const menuItems = [
+                { id: 'sketchbook', title: 'Sketchbook', desc: 'Study cards', icon: ICONS.book, color: 'blue' },
+                { id: 'quiz', title: 'Pebble Paths', desc: 'Find meaning', icon: ICONS.layers, color: 'slate' },
+                { id: 'workshop', title: 'Workshop', desc: 'Build words', icon: ICONS.hammer, color: 'amber' },
+                { id: 'garden', title: 'Garden', desc: 'Match seeds', icon: ICONS.leaf, color: 'green' },
+                { id: 'order', title: 'Order', desc: 'Alphabetize', icon: ICONS.alignLeft, color: 'blue' },
+                { id: 'roots', title: 'Roots', desc: 'Synonyms', icon: ICONS.split, color: 'purple' },
+                { id: 'story', title: 'Story Stones', desc: 'Complete it', icon: ICONS.message, color: 'amber' },
+            ];
+
+            const grid = div.querySelector('#menu-grid');
+            menuItems.forEach(item => {
+                const btn = document.createElement('button');
+                btn.className = `group relative bg-white rounded-2xl p-4 shadow-sm border-2 border-stone-100 hover:shadow-md transition-all text-left flex flex-col h-36 justify-between overflow-hidden hover:border-${item.color}-200`;
+                btn.innerHTML = `<div class="absolute -right-4 -top-4 bg-${item.color}-50 w-20 h-20 rounded-full transition-transform group-hover:scale-150"></div><div class="z-10 bg-${item.color}-100 w-10 h-10 rounded-lg flex items-center justify-center text-${item.color}-700 mb-2">${item.icon}</div><div class="z-10"><h3 class="text-base font-bold text-stone-800 mb-0 leading-tight">${item.title}</h3><p class="text-xs text-stone-500">${item.desc}</p></div>`;
+                btn.onclick = () => initGame(item.id);
+                grid.appendChild(btn);
+            });
+
+            div.querySelector('#btn-back-units').onclick = () => { State.view = 'selection'; render(); };
+            App.appendChild(div);
+        }
+
+        function renderVictory() {
+            const div = document.createElement('div');
+            div.className = "flex flex-col items-center justify-center text-center p-8 animate-fadeIn max-w-md mx-auto";
+            div.innerHTML = `
+                <div class="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center text-green-600 mb-6 animate-pulse-slow">
+                    ${ICONS.sprout}
+                </div>
+                <h2 class="text-3xl font-serif text-stone-800 mb-2">Garden Tended!</h2>
+                <p class="text-stone-500 mb-8">You have watered all the seeds in this path. Excellent work!</p>
+                <button id="back-btn" class="px-8 py-3 bg-green-700 text-white rounded-full font-bold shadow-md hover:bg-green-800 transition-all flex items-center gap-2">
+                    ${ICONS.arrowLeft} Return to Garden
+                </button>
+            `;
+            div.querySelector('#back-btn').onclick = () => { State.view = 'menu'; render(); };
+            App.appendChild(div);
+        }
+
+        // --- 6. GAMES ---
+
+        // A. Sketchbook
+        function renderSketchbook() {
+            if (State.queue.length === 0) { 
+                App.innerHTML = `<div class="text-center p-10"><h2 class="text-xl mb-4">No cards found.</h2><button onclick="State.view='menu';render()" class="underline">Back</button></div>`;
+                return;
+            }
+            const item = State.queue[0];
+            const isFlipped = State.feedback === true;
+            
+            // FIX: Safely handle 'Unit' display for numbers OR strings
+            const unitLabel = String(item.u).includes(':') ? String(item.u).split(':')[0] : `Unit ${item.u}`;
+
+            const div = document.createElement('div');
+            div.className = "flex flex-col items-center justify-center w-full animate-fadeIn";
+            div.innerHTML = `
+                <div class="flex items-center justify-between w-full max-w-md mb-6"><button id="back-btn" class="flex items-center text-stone-600 hover:text-stone-800 transition-colors">${ICONS.arrowLeft} Garden</button><span class="text-stone-500 font-serif italic">${State.queue.length} seeds left</span></div>
+                <div id="card-container" class="cursor-pointer group perspective-1000 w-full max-w-md h-96 relative ${isFlipped ? 'flipped' : ''}">
+                    <div class="card-inner relative w-full h-full transform-style-3d">
+                        <div class="absolute w-full h-full backface-hidden bg-white rounded-xl shadow-lg border-2 border-stone-200 flex flex-col items-center justify-center p-8 bg-paper-pattern">
+                            <span class="text-stone-400 text-xs absolute top-4 right-4 uppercase tracking-wider truncate max-w-[150px]">${unitLabel}</span><h2 class="text-4xl text-stone-800 font-serif font-medium tracking-wide text-center">${item.w}</h2><div class="mt-8 text-stone-400 text-sm flex items-center gap-2">${ICONS.refresh} Tap to reveal</div>
+                        </div>
+                        <div class="absolute w-full h-full backface-hidden bg-stone-50 rounded-xl shadow-lg border-2 border-stone-300 flex flex-col items-center justify-center p-8 rotate-y-180 bg-paper-pattern">
+                            <span class="text-stone-400 text-sm absolute top-4 right-4">Definition</span><p class="text-xl text-stone-700 text-center font-medium leading-relaxed mb-6">"${item.d}"</p>
+                            <div class="w-full grid grid-cols-2 gap-4 mt-4 border-t-2 border-dashed border-stone-200 pt-4"><div class="text-center"><span class="block text-xs uppercase tracking-widest text-stone-400 mb-1">Synonym</span><span class="text-stone-600 font-serif italic">${item.s || '-'}</span></div><div class="text-center"><span class="block text-xs uppercase tracking-widest text-stone-400 mb-1">Antonym</span><span class="text-stone-600 font-serif italic">${item.a || '-'}</span></div></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex gap-4 mt-8 w-full max-w-md">
+                    <button id="btn-again" class="flex-1 py-3 px-6 rounded-lg border-2 border-stone-300 text-stone-500 font-bold hover:bg-stone-100 transition-colors">Shuffle</button>
+                    <button id="btn-gotit" class="flex-1 py-3 px-6 rounded-lg bg-green-700/90 text-white font-bold shadow-md hover:bg-green-800 hover:shadow-lg transition-all flex items-center justify-center gap-2">${ICONS.check} Got it!</button>
+                </div>
+            `;
+            div.querySelector('#card-container').onclick = () => { State.feedback = !State.feedback; render(); };
+            div.querySelector('#back-btn').onclick = () => { State.view = 'menu'; render(); };
+            div.querySelector('#btn-again').onclick = (e) => { e.stopPropagation(); State.feedback = false; State.queue.push(State.queue.shift()); render(); };
+            div.querySelector('#btn-gotit').onclick = (e) => { e.stopPropagation(); State.progress++; State.feedback = false; State.queue.shift(); if(!checkVictory()) render(); };
+            App.appendChild(div);
+        }
+
+        // B. Workshop
+        function renderWorkshop() {
+            if (checkVictory()) return;
+            const item = State.queue[0];
+
+            if (!State.tempData || State.tempData.word !== item.w) {
+                const w = item.w;
+                const letters = w.split('').map((l, i) => ({ val: l, id: i }));
+                for (let i = letters.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [letters[i], letters[j]] = [letters[j], letters[i]]; }
+                State.tempData = { word: w, shuffled: letters, placed: Array(w.length).fill(null) };
+                State.feedback = null;
+            }
+
+            const div = document.createElement('div');
+            div.className = "flex flex-col items-center justify-start w-full animate-fadeIn";
+            div.innerHTML = `
+                <div class="flex items-center justify-between w-full max-w-lg mb-8"><button id="back-btn" class="flex items-center text-stone-600 hover:text-stone-800">${ICONS.arrowLeft} Garden</button><span class="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-xs font-bold tracking-wider">WORKSHOP</span></div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-stone-200 w-full max-w-lg text-center mb-8"><p class="text-xl text-stone-800 font-medium leading-relaxed">"${item.d}"</p></div>
+                <div class="flex flex-wrap justify-center gap-2 mb-10 ${State.feedback === false ? 'animate-shake' : ''}" id="slots-area"></div>
+                <div class="flex flex-wrap justify-center gap-2 max-w-lg" id="tiles-area"></div>
+                ${State.feedback === true ? `<div class="fixed bottom-10 bg-green-600 text-white px-6 py-2 rounded-full shadow-lg flex items-center gap-2 animate-bounce">${ICONS.check} Built!</div>` : ''}
+            `;
+
+            const slotsArea = div.querySelector('#slots-area');
+            State.tempData.placed.forEach((l, i) => {
+                const btn = document.createElement('button');
+                btn.className = `w-10 h-12 rounded-lg flex items-center justify-center text-xl font-bold shadow-inner border-2 transition-all ${l ? (State.feedback===true ? 'bg-green-100 border-green-300 text-green-700' : 'bg-stone-100 border-stone-300 text-stone-800') : 'bg-stone-50 border-stone-200 border-dashed'}`;
+                btn.innerText = l ? l.val : '';
+                btn.onclick = () => { if (State.feedback === true || !l) return; State.tempData.shuffled.push(l); State.tempData.placed[i] = null; render(); };
+                slotsArea.appendChild(btn);
+            });
+
+            const tilesArea = div.querySelector('#tiles-area');
+            State.tempData.shuffled.forEach((l) => {
+                const btn = document.createElement('button');
+                btn.className = "w-10 h-12 bg-amber-200 rounded-lg shadow-sm border-t border-amber-100 flex items-center justify-center text-xl font-bold text-amber-900 active:translate-y-1 transition-transform";
+                btn.innerText = l.val;
+                btn.onclick = () => {
+                    if (State.feedback === true) return;
+                    const firstEmpty = State.tempData.placed.indexOf(null);
+                    if (firstEmpty !== -1) {
+                        State.tempData.placed[firstEmpty] = l;
+                        State.tempData.shuffled = State.tempData.shuffled.filter(x => x.id !== l.id);
+                        if (State.tempData.placed.indexOf(null) === -1) {
+                            if (State.tempData.placed.map(x => x.val).join('') === item.w) {
+                                State.feedback = true; State.progress++;
+                                setTimeout(() => { State.queue.shift(); State.tempData = null; checkVictory() || render(); }, 1500);
+                            } else { State.feedback = false; setTimeout(() => { State.feedback = null; render(); }, 1000); }
+                        }
+                        render();
+                    }
+                };
+                tilesArea.appendChild(btn);
+            });
+
+            div.querySelector('#back-btn').onclick = () => { State.view = 'menu'; render(); };
+            App.appendChild(div);
+        }
+
+        // C. Quiz
+        function renderQuiz() {
+            if (checkVictory()) return;
+            const target = State.queue[0];
+
+            if (!State.tempData || State.tempData.word !== target.w) {
+                const distractors = State.pool.filter(i => i.w !== target.w).sort(() => 0.5 - Math.random()).slice(0, 3);
+                const opts = [...distractors, target].sort(() => 0.5 - Math.random());
+                State.tempData = { word: target.w, options: opts };
+                State.feedback = null;
+            }
+
+            const div = document.createElement('div');
+            div.className = "flex flex-col items-center justify-start w-full animate-fadeIn";
+            div.innerHTML = `
+                <div class="flex items-center justify-between w-full max-w-2xl mb-8"><button id="back-btn" class="flex items-center text-stone-600 hover:text-stone-800">${ICONS.arrowLeft} Garden</button><span class="bg-slate-100 text-slate-800 px-3 py-1 rounded-full text-xs font-bold tracking-wider">PEBBLE SORTING</span></div>
+                <div class="text-center mb-8"><span class="text-stone-400 text-sm uppercase tracking-widest">Find the meaning of</span><h2 class="text-4xl text-stone-800 font-serif font-bold mt-2">${target.w}</h2></div>
+                <div class="grid grid-cols-1 gap-4 w-full max-w-2xl" id="opts-container"></div>
+            `;
+
+            const optsContainer = div.querySelector('#opts-container');
+            State.tempData.options.forEach(opt => {
+                const btn = document.createElement('button');
+                const isCorrect = opt.w === target.w;
+                let cls = "bg-white border-stone-200 hover:bg-slate-50";
+                
+                if (State.feedback) {
+                    if (State.feedback.clicked === opt) cls = isCorrect ? "bg-green-100 border-green-500 text-green-800" : "bg-red-50 border-red-300 text-red-800 animate-shake";
+                    else if (isCorrect && State.feedback.clicked !== opt) cls = "bg-green-50 border-green-300 opacity-70";
                 }
 
-                return (
-                    <button
-                        key={i}
-                        onClick={() => handleSelect(opt)}
-                        className={`p-5 rounded-2xl border-2 shadow-sm text-left transition-all duration-200 flex items-start gap-4 ${styleClass}`}
-                    >
-                        <div className={`mt-1 min-w-[24px] h-6 rounded-full border-2 flex items-center justify-center
-                            ${isSelected && isTarget ? 'border-green-600 bg-green-600 text-white' : 'border-stone-300'}
-                        `}>
-                            {isSelected && isTarget && <Check size={14} />}
-                            {isSelected && !isTarget && <X size={14} />}
-                        </div>
-                        <span className="text-lg font-medium leading-snug">{opt.d}</span>
-                    </button>
-                )
-            })}
-        </div>
-    </div>
-  );
-};
-
-// 4. Community Garden (Match)
-const MeaningGarden = ({ pool, onBack, onMastery }) => {
-  const [roundData, setRoundData] = useState([]);
-  const [selectedWord, setSelectedWord] = useState(null);
-  const [matchedIds, setMatchedIds] = useState([]);
-
-  useEffect(() => {
-    const size = Math.min(pool.length, 3);
-    const shuffled = [...pool].sort(() => 0.5 - Math.random()).slice(0, size);
-    setRoundData(shuffled);
-    setMatchedIds([]);
-    setSelectedWord(null);
-  }, [pool]);
-
-  const handleWordClick = (word) => {
-    if (matchedIds.includes(word)) return;
-    setSelectedWord(word === selectedWord ? null : word);
-  };
-
-  const handleDefClick = (word) => {
-    if (matchedIds.includes(word)) return;
-    if (selectedWord === word) {
-      setMatchedIds(prev => [...prev, word]);
-      setSelectedWord(null);
-      onMastery(); 
-      if (matchedIds.length + 1 === roundData.length) {
-        setTimeout(() => {
-           const size = Math.min(pool.length, 3);
-           const shuffled = [...pool].sort(() => 0.5 - Math.random()).slice(0, size);
-           setRoundData(shuffled);
-           setMatchedIds([]);
-        }, 1500);
-      }
-    } else {
-      setSelectedWord(null);
-    }
-  };
-
-  return (
-    <div className="flex flex-col h-full w-full p-4 animate-fadeIn">
-      <div className="flex items-center justify-between w-full mb-6">
-        <button onClick={onBack} className="flex items-center text-stone-600 hover:text-stone-800">
-          <ArrowLeft size={20} className="mr-2" /> Garden
-        </button>
-        <div className="flex items-center gap-2 text-green-700">
-          <Sprout size={20} /> <span className="font-bold">Planting Season</span>
-        </div>
-      </div>
-
-      <div className="flex-1 flex flex-col md:flex-row gap-8 items-center justify-center max-w-5xl mx-auto w-full">
-        <div className="flex-1 w-full space-y-4">
-          <h3 className="text-center text-stone-400 text-sm uppercase tracking-widest mb-2">Seeds</h3>
-          {roundData.map(item => {
-            const isMatched = matchedIds.includes(item.w);
-            const isSelected = selectedWord === item.w;
-            return (
-              <button
-                key={`word-${item.w}`}
-                onClick={() => handleWordClick(item.w)}
-                disabled={isMatched}
-                className={`w-full p-4 rounded-xl border-2 transition-all duration-300 relative overflow-hidden text-left
-                  ${isMatched 
-                    ? 'bg-green-50 border-green-200 opacity-50' 
-                    : isSelected
-                      ? 'bg-amber-100 border-amber-400 shadow-md scale-105 z-10'
-                      : 'bg-white border-stone-200 hover:border-amber-300 hover:shadow-sm'
-                  }`}
-              >
-                 <div className="flex items-center justify-between">
-                    <span className={`text-lg font-bold ${isMatched ? 'text-green-800' : 'text-stone-800'}`}>{item.w}</span>
-                    {isMatched && <Check size={20} className="text-green-600" />}
-                 </div>
-              </button>
-            )
-          })}
-        </div>
-
-        <div className="flex-1 w-full space-y-4">
-          <h3 className="text-center text-stone-400 text-sm uppercase tracking-widest mb-2">Soil</h3>
-          {roundData.sort((a,b) => a.w.localeCompare(b.w)).map(item => { // randomize visual order logic here
-             const isMatched = matchedIds.includes(item.w);
-             return (
-               <button
-                 key={`def-${item.w}`}
-                 onClick={() => handleDefClick(item.w)}
-                 disabled={isMatched}
-                 className={`w-full p-4 rounded-xl border-2 transition-all duration-300 text-left h-auto min-h-[80px]
-                   ${isMatched 
-                     ? 'bg-green-100 border-green-300' 
-                     : selectedWord 
-                       ? 'bg-stone-50 border-stone-300 border-dashed hover:bg-green-50 hover:border-green-400'
-                       : 'bg-stone-50 border-stone-200'
-                   }`}
-               >
-                 {isMatched ? (
-                    <div className="flex items-center justify-center gap-2 text-green-800 font-bold">
-                        <Leaf className="fill-current" /> Planted!
-                    </div>
-                 ) : (
-                    <span className="text-stone-600 text-sm leading-snug">{item.d}</span>
-                 )}
-               </button>
-             )
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// 5. Main Menu (The Garden Center)
-const MainMenu = ({ onViewChange, progress, onBack }) => {
-  const gardenLevel = Math.min(Math.floor(progress / 5), 5); 
-  
-  return (
-    <div className="flex flex-col items-center w-full max-w-4xl mx-auto p-6 animate-fadeIn">
-      
-      <div className="w-full flex justify-start mb-4">
-         <button onClick={onBack} className="text-stone-400 hover:text-stone-600 text-sm flex items-center gap-1">
-            <ArrowLeft size={16}/> Select different units
-         </button>
-      </div>
-
-      <header className="text-center mb-8 w-full">
-        <h1 className="text-4xl md:text-5xl font-serif text-stone-800 mb-2">The Garden</h1>
-        <p className="text-stone-500 italic">Choose a path to explore.</p>
-      </header>
-
-      {/* The Garden Dashboard */}
-      <div className="w-full bg-gradient-to-b from-blue-50 to-white border border-stone-200 rounded-3xl p-8 mb-10 shadow-sm relative overflow-hidden">
-        <div className="absolute top-4 right-4 text-yellow-400 animate-pulse-slow">
-            <Sun size={48} className="fill-current" />
-        </div>
-        <div className="absolute top-8 left-10 text-blue-100">
-            <Cloud size={64} className="fill-current" />
-        </div>
-
-        <div className="flex flex-col items-center justify-end h-32 relative z-10">
-            <div className="flex items-end gap-2">
-                {Array.from({ length: 5 }).map((_, i) => (
-                    <div key={i} className={`transition-all duration-1000 ${i < gardenLevel ? 'opacity-100 translate-y-0' : 'opacity-20 translate-y-10 scale-0'}`}>
-                        <Sprout size={32 + (i*8)} className={`text-green-${500 + (i*100)}`} />
-                    </div>
-                ))}
-            </div>
-            <div className="w-full h-4 bg-stone-300 rounded-full mt-2 opacity-50"></div>
-            <p className="mt-4 text-stone-600 font-medium text-sm bg-white/80 px-4 py-1 rounded-full shadow-sm">
-              Growth: {progress} Seeds Sprouted
-            </p>
-        </div>
-      </div>
-
-      {/* Invitations */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
-        
-        <button 
-            onClick={() => onViewChange('sketchbook')}
-            className="group relative bg-white rounded-2xl p-5 shadow-sm border-2 border-stone-100 hover:border-blue-200 hover:shadow-md transition-all text-left flex flex-col h-40 justify-between overflow-hidden"
-        >
-            <div className="absolute -right-4 -top-4 bg-blue-50 w-20 h-20 rounded-full transition-transform group-hover:scale-150"></div>
-            <div className="z-10 bg-blue-100 w-10 h-10 rounded-lg flex items-center justify-center text-blue-600 mb-2">
-                <BookOpen size={20} />
-            </div>
-            <div className="z-10">
-                <h3 className="text-lg font-bold text-stone-800 mb-1">Sketchbook</h3>
-                <p className="text-xs text-stone-500">Study cards.</p>
-            </div>
-        </button>
-
-        <button 
-            onClick={() => onViewChange('quiz')}
-            className="group relative bg-white rounded-2xl p-5 shadow-sm border-2 border-stone-100 hover:border-slate-200 hover:shadow-md transition-all text-left flex flex-col h-40 justify-between overflow-hidden"
-        >
-            <div className="absolute -right-4 -top-4 bg-slate-100 w-20 h-20 rounded-full transition-transform group-hover:scale-150"></div>
-            <div className="z-10 bg-slate-200 w-10 h-10 rounded-lg flex items-center justify-center text-slate-700 mb-2">
-                <Layers size={20} />
-            </div>
-            <div className="z-10">
-                <h3 className="text-lg font-bold text-stone-800 mb-1">Pebble Paths</h3>
-                <p className="text-xs text-stone-500">Find the meaning.</p>
-            </div>
-        </button>
-
-        <button 
-            onClick={() => onViewChange('workshop')}
-            className="group relative bg-white rounded-2xl p-5 shadow-sm border-2 border-stone-100 hover:border-amber-200 hover:shadow-md transition-all text-left flex flex-col h-40 justify-between overflow-hidden"
-        >
-            <div className="absolute -right-4 -top-4 bg-amber-50 w-20 h-20 rounded-full transition-transform group-hover:scale-150"></div>
-            <div className="z-10 bg-amber-100 w-10 h-10 rounded-lg flex items-center justify-center text-amber-700 mb-2">
-                <Hammer size={20} />
-            </div>
-            <div className="z-10">
-                <h3 className="text-lg font-bold text-stone-800 mb-1">Workshop</h3>
-                <p className="text-xs text-stone-500">Build words.</p>
-            </div>
-        </button>
-
-        <button 
-            onClick={() => onViewChange('garden')}
-            className="group relative bg-white rounded-2xl p-5 shadow-sm border-2 border-stone-100 hover:border-green-200 hover:shadow-md transition-all text-left flex flex-col h-40 justify-between overflow-hidden"
-        >
-            <div className="absolute -right-4 -top-4 bg-green-50 w-20 h-20 rounded-full transition-transform group-hover:scale-150"></div>
-            <div className="z-10 bg-green-100 w-10 h-10 rounded-lg flex items-center justify-center text-green-700 mb-2">
-                <Leaf size={20} />
-            </div>
-            <div className="z-10">
-                <h3 className="text-lg font-bold text-stone-800 mb-1">Garden</h3>
-                <p className="text-xs text-stone-500">Match seeds.</p>
-            </div>
-        </button>
-
-      </div>
-    </div>
-  );
-};
-
-// --- MAIN APP CONTAINER ---
-export default function App() {
-  const [currentView, setCurrentView] = useState('selection');
-  const [progress, setProgress] = useState(0);
-  const [activeUnits, setActiveUnits] = useState([]);
-  
-  // Extract unique units from RAW_DATA
-  const availableUnits = useMemo(() => {
-    const units = new Set(RAW_DATA.map(i => i.u));
-    return Array.from(units).sort();
-  }, []);
-
-  // Filter pool based on selection
-  const activePool = useMemo(() => {
-    if (activeUnits.length === 0) return [];
-    return RAW_DATA.filter(item => activeUnits.includes(item.u));
-  }, [activeUnits]);
-
-  const handleStart = (selected) => {
-    setActiveUnits(selected);
-    setCurrentView('menu');
-  };
-
-  const handleMastery = () => {
-    setProgress(prev => prev + 1);
-  };
-
-  return (
-    <div className="min-h-screen bg-stone-50 font-sans text-stone-800 selection:bg-amber-100 flex flex-col">
-      <style>{`
-        .bg-paper-pattern {
-          background-image: radial-gradient(#e7e5e4 1px, transparent 1px);
-          background-size: 20px 20px;
+                btn.className = `p-5 rounded-2xl border-2 shadow-sm text-left transition-all flex items-start gap-4 ${cls}`;
+                btn.innerHTML = `<span class="text-lg font-medium leading-snug">${opt.d}</span>`;
+                btn.onclick = () => {
+                    if (State.feedback) return;
+                    State.feedback = { clicked: opt };
+                    render();
+                    if (isCorrect) {
+                        State.progress++;
+                        setTimeout(() => { State.queue.shift(); State.tempData = null; checkVictory() || render(); }, 1500);
+                    } else { setTimeout(() => { State.feedback = null; render(); }, 1500); }
+                };
+                optsContainer.appendChild(btn);
+            });
+            div.querySelector('#back-btn').onclick = () => { State.view = 'menu'; render(); };
+            App.appendChild(div);
         }
-        .transform-style-3d { transform-style: preserve-3d; }
-        .backface-hidden { backface-visibility: hidden; }
-        .rotate-y-180 { transform: rotateY(180deg); }
-        .perspective-1000 { perspective: 1000px; }
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fadeIn { animation: fadeIn 0.6s ease-out forwards; }
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          25% { transform: translateX(-5px); }
-          75% { transform: translateX(5px); }
-        }
-        .animate-shake { animation: shake 0.3s ease-in-out; }
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #f5f5f4; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #d6d3d1; border-radius: 20px; }
-      `}</style>
 
-      <main className="flex-grow flex items-center justify-center">
-        {currentView === 'selection' && (
-          <UnitSelection units={availableUnits} onStart={handleStart} />
-        )}
-        {currentView === 'menu' && (
-          <MainMenu onViewChange={setCurrentView} progress={progress} onBack={() => setCurrentView('selection')} />
-        )}
-        {currentView === 'sketchbook' && (
-          <Sketchbook pool={activePool} onBack={() => setCurrentView('menu')} onMastery={handleMastery} />
-        )}
-        {currentView === 'workshop' && (
-          <WordWorkshop pool={activePool} onBack={() => setCurrentView('menu')} onMastery={handleMastery} />
-        )}
-        {currentView === 'garden' && (
-          <MeaningGarden pool={activePool} onBack={() => setCurrentView('menu')} onMastery={handleMastery} />
-        )}
-        {currentView === 'quiz' && (
-          <PebblePaths pool={activePool} onBack={() => setCurrentView('menu')} onMastery={handleMastery} />
-        )}
-      </main>
-      
-      <footer className="p-4 text-center text-stone-400 text-sm">
-        <p>Vocabulary Garden • {activeUnits.length > 0 ? `${activeUnits.length} Unit(s) Active` : 'Select Units'}</p>
-      </footer>
-    </div>
-  );
-}
+        // D. Garden
+        function renderGarden() {
+            if (checkVictory()) return;
+            
+            // Chunking: Take up to 3 from queue
+            if (!State.tempData || !State.tempData.seeds || State.tempData.seeds.length === 0) {
+                 const round = State.queue.slice(0, 3);
+                 State.tempData = { seeds: round, matched: [], selectedSeed: null };
+            }
+
+            const div = document.createElement('div');
+            div.className = "flex flex-col w-full p-4 animate-fadeIn";
+            div.innerHTML = `
+                <div class="flex items-center justify-between w-full mb-6"><button id="back-btn" class="flex items-center text-stone-600 hover:text-stone-800">${ICONS.arrowLeft} Garden</button><div class="flex items-center gap-2 text-green-700">${ICONS.sprout} <span class="font-bold">Planting Season</span></div></div>
+                <div class="flex-1 flex flex-col md:flex-row gap-8 items-center justify-center max-w-5xl mx-auto w-full">
+                    <div class="flex-1 w-full space-y-4" id="col-seeds"><h3 class="text-center text-stone-400 text-sm uppercase tracking-widest mb-2">Seeds</h3></div>
+                    <div class="flex-1 w-full space-y-4" id="col-soil"><h3 class="text-center text-stone-400 text-sm uppercase tracking-widest mb-2">Soil</h3></div>
+                </div>
+            `;
+
+            const seedCol = div.querySelector('#col-seeds');
+            State.tempData.seeds.forEach(item => {
+                const isMatched = State.tempData.matched.includes(item.w);
+                const isSelected = State.tempData.selectedSeed === item.w;
+                const btn = document.createElement('button');
+                btn.className = `w-full p-4 rounded-xl border-2 transition-all relative overflow-hidden text-left ${isMatched ? 'bg-green-50 border-green-200 opacity-50' : isSelected ? 'bg-amber-100 border-amber-400 scale-105 shadow-md' : 'bg-white border-stone-200 hover:border-amber-300'}`;
+                btn.innerHTML = `<span class="text-lg font-bold text-stone-800">${item.w}</span>`;
+                btn.disabled = isMatched;
+                btn.onclick = () => { State.tempData.selectedSeed = (State.tempData.selectedSeed === item.w) ? null : item.w; render(); };
+                seedCol.appendChild(btn);
+            });
+
+            const soilCol = div.querySelector('#col-soil');
+            [...State.tempData.seeds].sort((a,b) => a.w.localeCompare(b.w)).forEach(item => {
+                const isMatched = State.tempData.matched.includes(item.w);
+                const btn = document.createElement('button');
+                btn.className = `w-full p-4 rounded-xl border-2 transition-all text-left min-h-[80px] ${isMatched ? 'bg-green-100 border-green-300' : State.tempData.selectedSeed ? 'bg-stone-50 border-stone-300 border-dashed hover:bg-green-50' : 'bg-stone-50 border-stone-200'}`;
+                btn.innerHTML = isMatched ? `<div class="flex items-center justify-center gap-2 text-green-800 font-bold">${ICONS.leaf} Planted!</div>` : `<span class="text-stone-600 text-sm">${item.d}</span>`;
+                btn.disabled = isMatched;
+                btn.onclick = () => {
+                    if (State.tempData.selectedSeed === item.w) {
+                        State.tempData.matched.push(item.w); State.tempData.selectedSeed = null; State.progress++;
+                        if (State.tempData.matched.length === State.tempData.seeds.length) {
+                             // Remove these 3 from queue
+                             State.queue = State.queue.slice(State.tempData.seeds.length);
+                             setTimeout(() => { State.tempData = null; checkVictory() || render(); }, 1500);
+                        } else render();
+                    } else { State.tempData.selectedSeed = null; render(); }
+                };
+                soilCol.appendChild(btn);
+            });
+            div.querySelector('#back-btn').onclick = () => { State.view = 'menu'; render(); };
+            App.appendChild(div);
+        }
+
+        // E. Order
+        function renderOrder() {
+             if (checkVictory()) return;
+             
+             // Take up to 5
+             if (!State.tempData) {
+                 // Check if we have enough items (min 2)
+                 if (State.queue.length < 2) {
+                     // Auto-win last item? No, let's just claim victory if < 2 to avoid weirdness
+                     State.queue = []; checkVictory(); return;
+                 }
+                const round = State.queue.slice(0, 5);
+                const correctOrder = [...round].sort((a,b) => a.w.localeCompare(b.w));
+                State.tempData = { items: round, correctOrder: correctOrder, foundCount: 0, error: false };
+             }
+
+             const div = document.createElement('div');
+             div.className = "flex flex-col items-center h-full w-full p-4 animate-fadeIn";
+             div.innerHTML = `
+                <div class="flex items-center justify-between w-full max-w-lg mb-8"><button id="back-btn" class="flex items-center text-stone-600 hover:text-stone-800">${ICONS.arrowLeft} Garden</button><span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-bold tracking-wider">ORDER</span></div>
+                <p class="text-stone-500 italic mb-6">Select the words in alphabetical order.</p>
+                <div class="w-full max-w-lg bg-stone-100 rounded-xl p-4 min-h-[80px] flex flex-wrap gap-2 mb-8 border-b-4 border-stone-200 shadow-inner" id="shelf"></div>
+                <div class="flex flex-wrap justify-center gap-4 max-w-lg ${State.tempData.error ? 'animate-shake' : ''}" id="pool"></div>
+             `;
+
+             const shelf = div.querySelector('#shelf');
+             for(let i=0; i<State.tempData.foundCount; i++) {
+                 const badge = document.createElement('div');
+                 badge.className = "px-4 py-2 bg-green-600 text-white rounded-lg shadow-sm font-bold";
+                 badge.innerText = State.tempData.correctOrder[i].w;
+                 shelf.appendChild(badge);
+             }
+
+             const poolDiv = div.querySelector('#pool');
+             State.tempData.items.forEach(item => {
+                 const correctIndex = State.tempData.correctOrder.indexOf(item);
+                 if (correctIndex < State.tempData.foundCount) return;
+
+                 const btn = document.createElement('button');
+                 btn.className = "px-6 py-3 bg-white border-2 border-stone-200 rounded-xl shadow-sm text-stone-700 font-bold text-lg hover:border-blue-300 hover:-translate-y-1 transition-all";
+                 btn.innerText = item.w;
+                 btn.onclick = () => {
+                     const nextCorrect = State.tempData.correctOrder[State.tempData.foundCount];
+                     if (item.w === nextCorrect.w) {
+                         State.tempData.foundCount++;
+                         if (State.tempData.foundCount === State.tempData.items.length) {
+                             State.progress++;
+                             // Remove played from queue
+                             State.queue = State.queue.slice(State.tempData.items.length);
+                             setTimeout(() => { State.tempData = null; checkVictory() || render(); }, 1500);
+                         }
+                         render();
+                     } else { State.tempData.error = true; render(); setTimeout(() => { State.tempData.error = false; render(); }, 500); }
+                 };
+                 poolDiv.appendChild(btn);
+             });
+             div.querySelector('#back-btn').onclick = () => { State.view = 'menu'; render(); };
+             App.appendChild(div);
+        }
+
+        // F. Roots
+        function renderRoots() {
+            if (checkVictory()) return;
+            // Pre-filtered in initGame, so assume valid
+            const target = State.queue[0];
+            
+            if (!State.tempData || State.tempData.word !== target.w) {
+                 // Determine valid mode
+                 let mode = 'syn';
+                 if (target.a && target.a !== 'void' && target.a !== '-') {
+                     // If ant exists, 50% chance, or if syn invalid force ant
+                     if ((!target.s || target.s === 'void' || target.s === '-') || Math.random() > 0.5) mode = 'ant';
+                 }
+                 
+                 const correct = mode === 'syn' ? target.s : target.a;
+                 const distractors = State.pool.filter(i => i.w !== target.w).sort(() => 0.5 - Math.random()).slice(0, 3).map(i => i.w);
+                 const opts = [...distractors, correct].sort(() => 0.5 - Math.random());
+                 State.tempData = { mode: mode, word: target.w, correct: correct, options: opts, feedback: null };
+            }
+
+            const div = document.createElement('div');
+            div.className = "flex flex-col items-center h-full w-full p-4 animate-fadeIn";
+            div.innerHTML = `
+                <div class="flex items-center justify-between w-full max-w-lg mb-8"><button id="back-btn" class="flex items-center text-stone-600 hover:text-stone-800">${ICONS.arrowLeft} Garden</button><span class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-bold tracking-wider">ROOTS</span></div>
+                <div class="text-center mb-10"><span class="text-stone-400 text-sm uppercase tracking-widest block mb-2">Find the ${State.tempData.mode === 'syn' ? 'Synonym' : 'Antonym'} for</span><div class="text-4xl font-serif font-bold text-stone-800 border-b-2 border-stone-200 pb-4 px-8 inline-block">${target.w}</div></div>
+                <div class="grid grid-cols-2 gap-4 w-full max-w-lg" id="opts"></div>
+            `;
+
+            const grid = div.querySelector('#opts');
+            State.tempData.options.forEach(opt => {
+                 const btn = document.createElement('button');
+                 let cls = "bg-white border-stone-200 hover:border-purple-300";
+                 if (State.tempData.feedback !== null) {
+                     if (opt === State.tempData.correct) cls = "bg-green-100 border-green-500 text-green-800";
+                     else cls = "opacity-50";
+                 }
+                 btn.className = `p-6 rounded-xl border-2 text-lg font-bold transition-all ${cls}`;
+                 btn.innerText = opt;
+                 btn.onclick = () => {
+                     if (State.tempData.feedback !== null) return;
+                     const isCorrect = opt === State.tempData.correct;
+                     State.tempData.feedback = isCorrect;
+                     render();
+                     if (isCorrect) {
+                         State.progress++;
+                         setTimeout(() => { State.queue.shift(); State.tempData = null; checkVictory() || render(); }, 1500);
+                     } else { setTimeout(() => { State.tempData.feedback = null; render(); }, 1000); }
+                 };
+                 grid.appendChild(btn);
+            });
+            div.querySelector('#back-btn').onclick = () => { State.view = 'menu'; render(); };
+            App.appendChild(div);
+        }
+
+        // G. Story
+        function renderStory() {
+            if (checkVictory()) return;
+            const target = State.queue[0];
+
+            if (!State.tempData || State.tempData.word !== target.w) {
+                 const distractors = State.pool.filter(i => i.w !== target.w).sort(() => 0.5 - Math.random()).slice(0, 3);
+                 const opts = [...distractors, target].sort(() => 0.5 - Math.random());
+                 State.tempData = { word: target.w, opts: opts, feedback: null };
+            }
+
+            const prompt = target.ex || target.d; 
+            const div = document.createElement('div');
+            div.className = "flex flex-col items-center h-full w-full p-4 animate-fadeIn";
+            div.innerHTML = `
+                <div class="flex items-center justify-between w-full max-w-2xl mb-8"><button id="back-btn" class="flex items-center text-stone-600 hover:text-stone-800">${ICONS.arrowLeft} Garden</button><span class="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-bold tracking-wider">STORY STONES</span></div>
+                <div class="bg-white p-8 rounded-2xl shadow-sm border border-stone-200 w-full max-w-2xl text-center mb-10 relative"><div class="absolute top-0 left-0 w-full h-2 bg-amber-200 rounded-t-2xl"></div><p class="text-2xl text-stone-700 font-serif leading-relaxed" id="sentence-display"></p></div>
+                <div class="flex flex-wrap justify-center gap-4 w-full max-w-2xl" id="stones"></div>
+            `;
+
+            const display = div.querySelector('#sentence-display');
+            if (prompt.includes('_____')) {
+                const parts = prompt.split('_____');
+                display.innerHTML = `"${parts[0]} <span class="inline-block w-24 border-b-2 border-stone-800 mx-2"></span> ${parts[1] || ''}"`;
+            } else {
+                display.innerHTML = `"${prompt}" <span class="block mt-4 text-sm text-stone-400 font-sans not-italic uppercase tracking-wider">(Definition)</span>`;
+            }
+
+            const stones = div.querySelector('#stones');
+            State.tempData.opts.forEach(opt => {
+                const btn = document.createElement('button');
+                const isCorrect = opt.w === target.w;
+                let cls = "bg-white border-stone-200 text-stone-600 hover:border-amber-400";
+                
+                if (State.tempData.feedback !== null) {
+                    if (isCorrect) cls = "bg-green-600 text-white border-green-600 transform scale-105";
+                    else cls = "opacity-50 bg-stone-100";
+                }
+
+                btn.className = `px-6 py-4 rounded-full border-2 text-lg font-bold shadow-sm transition-all min-w-[140px] ${cls}`;
+                btn.innerText = opt.w;
+                btn.onclick = () => {
+                     if (State.tempData.feedback !== null) return;
+                     State.tempData.feedback = isCorrect; render();
+                     if (isCorrect) {
+                         State.progress++;
+                         setTimeout(() => { State.queue.shift(); State.tempData = null; checkVictory() || render(); }, 1500);
+                     } else { setTimeout(() => { State.tempData.feedback = null; render(); }, 1000); }
+                };
+                stones.appendChild(btn);
+            });
+            div.querySelector('#back-btn').onclick = () => { State.view = 'menu'; render(); };
+            App.appendChild(div);
+        }
+
+        render();
+    </script>
+</body>
+</html>
